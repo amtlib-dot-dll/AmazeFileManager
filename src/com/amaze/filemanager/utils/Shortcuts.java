@@ -20,6 +20,7 @@
 package com.amaze.filemanager.utils;
 
 import android.app.Activity;
+import android.content.Context;
 import android.os.Environment;
 import android.widget.Toast;
 
@@ -45,13 +46,17 @@ import javax.xml.transform.stream.StreamResult;
 
 
 public class Shortcuts {
-    public Shortcuts() {
+    Context context;
+    String path;
+    public Shortcuts(Context context) {
+        this.context=context;
+        path=context.getFilesDir()+"/shortcut.xml";
     }
 
     public void makeS() throws ParserConfigurationException, TransformerException {
         String sd = Environment.getExternalStorageDirectory() + "/";
         String[] a = new String[]{sd + Environment.DIRECTORY_DCIM, sd + Environment.DIRECTORY_DOWNLOADS, sd + Environment.DIRECTORY_MOVIES, sd + Environment.DIRECTORY_MUSIC, sd + Environment.DIRECTORY_PICTURES};
-        File g = new File("/data/data/com.amaze.filemanager/shortcut.xml");
+        File g = new File(path);
         if (!g.exists()) {
             DocumentBuilderFactory docFactory = DocumentBuilderFactory.newInstance();
             DocumentBuilder docBuilder = docFactory.newDocumentBuilder();
@@ -74,7 +79,7 @@ public class Shortcuts {
     }
 
     public void addS(File f) throws Exception {
-        File g = new File("/data/data/com.amaze.filemanager/shortcut.xml");
+        File g = new File(path);
         DocumentBuilderFactory docFactory = DocumentBuilderFactory.newInstance();
         DocumentBuilder docBuilder = docFactory.newDocumentBuilder();
 
@@ -94,14 +99,14 @@ public class Shortcuts {
         TransformerFactory transformerFactory = TransformerFactory.newInstance();
         Transformer transformer = transformerFactory.newTransformer();
         DOMSource source = new DOMSource(doc);
-        StreamResult result = new StreamResult(new File("/data/data/com.amaze.filemanager/shortcut.xml"));
+        StreamResult result = new StreamResult(new File(path));
         transformer.transform(source, result);
 
     }
 
     public ArrayList<File> readS() throws FileNotFoundException, IOException, SAXException, ParserConfigurationException {
         ArrayList<File> f = new ArrayList<File>();
-        File g = new File("/data/data/com.amaze.filemanager/shortcut.xml");
+        File g = new File(path);
         DocumentBuilderFactory docFactory = DocumentBuilderFactory.newInstance();
         DocumentBuilder docBuilder = docFactory.newDocumentBuilder();
 
@@ -131,9 +136,9 @@ public class Shortcuts {
         return b;
     }
 
-    public void removeS(File f1, Activity s) throws IOException, SAXException, ParserConfigurationException, TransformerException {
+    public void removeS(File f1, Context s) throws IOException, SAXException, ParserConfigurationException, TransformerException {
         //	ArrayList<File> f=new ArrayList<File>();
-        File g = new File("/data/data/com.amaze.filemanager/shortcut.xml");
+        File g = new File(path);
         DocumentBuilderFactory docFactory = DocumentBuilderFactory.newInstance();
         DocumentBuilder docBuilder = docFactory.newDocumentBuilder();
 
@@ -156,7 +161,7 @@ public class Shortcuts {
         TransformerFactory transformerFactory = TransformerFactory.newInstance();
         Transformer transformer = transformerFactory.newTransformer();
         DOMSource source = new DOMSource(doc);
-        StreamResult result = new StreamResult(new File("/data/data/com.amaze.filemanager/shortcut.xml"));
+        StreamResult result = new StreamResult(new File(path));
         transformer.transform(source, result);
         Toast.makeText(s, "Successful", Toast.LENGTH_LONG).show();
     }

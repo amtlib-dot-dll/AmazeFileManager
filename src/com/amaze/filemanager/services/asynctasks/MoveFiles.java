@@ -20,12 +20,14 @@
 package com.amaze.filemanager.services.asynctasks;
 
 
+import android.content.Context;
 import android.content.Intent;
 import android.os.AsyncTask;
 import android.widget.Toast;
 
 import com.amaze.filemanager.fragments.Main;
 import com.amaze.filemanager.services.CopyService;
+import com.amaze.filemanager.utils.Futils;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -34,8 +36,10 @@ public class MoveFiles extends AsyncTask<String,Void,Boolean> {
     ArrayList<File> files;
     Main ma;
     String path;
-    public MoveFiles(ArrayList<File> files,Main ma){
+    Context context;
+    public MoveFiles(ArrayList<File> files,Main ma,Context context){
         this.ma=ma;
+        this.context=context;
         this.files=files;
     }
 
@@ -51,10 +55,21 @@ public class MoveFiles extends AsyncTask<String,Void,Boolean> {
     }
     @Override
     public void onPostExecute(Boolean b){
-        if(b && ma.current.equals(path)){ma.updateList();}
-        if(!b){Intent intent = new Intent(ma.getActivity(), CopyService.class);
-            intent.putExtra("FILE_PATHS", files);
+        Futils futils=new Futils();
+        if(b ){if(ma!=null)if(ma.current.equals(path))ma.updateList();
+            try {    for(File f:files){
+               futils.scanFile(f.getPath(),context);
+                futils.scanFile(path+"/"+f.getName(),context);
+            }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+        else if(!b){
+            Intent intent = new Intent(context, CopyService.class);
+            intent.putExtra("FILE_PATHS", new Futils().toStringArray(files));
             intent.putExtra("COPY_DIRECTORY", path);
-            ma.getActivity().startService(intent);}
+            intent.putExtra("move",true);
+            context.startService(intent);}
     }
 }

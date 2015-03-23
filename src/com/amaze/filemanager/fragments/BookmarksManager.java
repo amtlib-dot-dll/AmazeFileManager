@@ -19,106 +19,164 @@
 
 package com.amaze.filemanager.fragments;
 
+import android.app.Activity;
 import android.app.AlertDialog;
+import android.content.Context;
 import android.content.DialogInterface;
 import android.content.SharedPreferences;
+import android.graphics.Color;
+import android.graphics.drawable.ColorDrawable;
+import android.os.AsyncTask;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
+import android.support.v4.app.Fragment;
 import android.support.v4.app.ListFragment;
-import android.view.Gravity;
+import android.support.v4.widget.SwipeRefreshLayout;
+import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.animation.Animation;
+import android.view.animation.AnimationUtils;
 import android.widget.EditText;
-import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.ListView;
+import android.widget.TextView;
 import android.widget.Toast;
 
+import com.afollestad.materialdialogs.MaterialDialog;
+import com.afollestad.materialdialogs.Theme;
 import com.amaze.filemanager.R;
+import com.amaze.filemanager.activities.MainActivity;
 import com.amaze.filemanager.adapters.BooksAdapter;
 import com.amaze.filemanager.utils.Futils;
 import com.amaze.filemanager.utils.IconUtils;
 import com.amaze.filemanager.utils.Shortcuts;
+import com.melnykov.fab.FloatingActionButton;
 
 import org.xml.sax.SAXException;
 
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Calendar;
 
 import javax.xml.parsers.ParserConfigurationException;
+import javax.xml.transform.TransformerException;
 
-import me.drakeet.materialdialog.MaterialDialog;
 
-public class BookmarksManager extends ListFragment {
+public class BookmarksManager extends Fragment {
     Futils utils = new Futils();
-    Shortcuts s = new Shortcuts();
+    Shortcuts s;
     BooksAdapter b;
     SharedPreferences Sp;
     public IconUtils icons;
     ArrayList<File> bx;
-ListView vl;
+  public   MainActivity m;
+ListView vl;int theme,theme1;
+View rootView;ListView listview;
+    Context c;
+    SwipeRefreshLayout swipeRefreshLayout;
+    @Override
+        public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
+            rootView = inflater.inflate(R.layout.main_frag, container, false);
+            MainActivity mainActivity=(MainActivity)getActivity();
+            mainActivity.toolbar.setTitle(utils.getString(getActivity(),R.string.bookmanag));
+            mainActivity.tabsSpinner.setVisibility(View.GONE);
+            listview=(ListView)rootView.findViewById(R.id.listView);
+            rootView.findViewById(R.id.buttonbarframe).setVisibility(View.GONE);
+            rootView.findViewById(R.id.activity_main_swipe_refresh_layout1).setVisibility(View.GONE);
+            c=getActivity();
+        return rootView;}
     @Override
     public void onActivityCreated(Bundle savedInstanceState) {
         super.onActivityCreated(savedInstanceState);
         setHasOptionsMenu(false);
         setRetainInstance(false);
-        getListView().setDivider(null);
-        getActivity().findViewById(R.id.buttonbarframe).setVisibility(View.GONE);
-        getActivity().findViewById(R.id.action_overflow).setVisibility(View.GONE);
-        getActivity().findViewById(R.id.search).setVisibility(View.GONE);
-        getActivity().findViewById(R.id.paste).setVisibility(View.GONE);
-        getActivity().findViewById(R.id.pink_icon).setVisibility(View.GONE);
-        getActivity().findViewById(R.id.bookadd).setVisibility(View.VISIBLE);
-        getActivity().findViewById(R.id.bookadd).setOnClickListener(new View.OnClickListener() {
+        s = new Shortcuts(getActivity());
+        Calendar calendar = Calendar.getInstance();
+        Sp = PreferenceManager.getDefaultSharedPreferences(getActivity());
+        int hour = calendar.get(Calendar.HOUR_OF_DAY);
+        theme=Integer.parseInt(Sp.getString("theme","0"));
+         swipeRefreshLayout=(SwipeRefreshLayout)rootView.findViewById(R.id.activity_main_swipe_refresh_layout);
+        swipeRefreshLayout.setOnRefreshListener(new SwipeRefreshLayout.OnRefreshListener() {
+            @Override
+            public void onRefresh() {
+                refresh();
+            }
+        });
+        theme1 = theme;
+        if (theme == 2) {
+            if(hour<=6 || hour>=18) {
+                theme1 = 1;
+            } else
+                theme1 = 0;
+        }
+        if(theme1==1){getActivity().getWindow().getDecorView().setBackgroundColor(Color.BLACK);
+        listview.setBackgroundColor(Color.BLACK);}
+        m=(MainActivity)getActivity();
+        m.supportInvalidateOptionsMenu();
+        listview.setDivider(null);
+
+        Animation animation1 = AnimationUtils.loadAnimation(getActivity(), R.anim.fab_newtab);
+        FloatingActionButton floatingActionButton = (FloatingActionButton) rootView.findViewById(R.id.fab);
+        floatingActionButton.show(true);
+        floatingActionButton.attachToListView(listview);
+        floatingActionButton.setColorNormal(Color.parseColor(((MainActivity)getActivity()).skin));
+        floatingActionButton.setColorPressed(Color.parseColor(((MainActivity)getActivity()).skin));
+
+        floatingActionButton.setAnimation(animation1);
+        //getActivity().findViewById(R.id.fab).setVisibility(View.VISIBLE);
+
+        getActivity().findViewById(R.id.fab).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
 
-                final MaterialDialog ba1 = new MaterialDialog(getActivity());
-                ba1.setTitle(utils.getString(getActivity(), R.string.addbook));
+                final MaterialDialog.Builder ba1 = new MaterialDialog.Builder(getActivity());
+                ba1.title(utils.getString(getActivity(), R.string.addbook));
                 View v = getActivity().getLayoutInflater().inflate(R.layout.dialog, null);
                 final EditText edir = (EditText) v.findViewById(R.id.newname);
                 edir.setHint(utils.getString(getActivity(), R.string.enterpath));
-                ba1.setContentView(v);
-                ba1.setNegativeButton(utils.getString(getActivity(), R.string.cancel), new View.OnClickListener() {
-
-                    public void onClick(View p2) {
-                  ba1.dismiss();      // TODO: Implement this method
-                    }
-                });
-                ba1.setPositiveButton(utils.getString(getActivity(), R.string.create), new View.OnClickListener() {
-
-                    public void onClick(View p2) {
+                ba1.customView(v);
+                if(theme1==1)ba1.theme(Theme.DARK);
+                ba1.negativeText(R.string.cancel);
+                ba1.positiveText(R.string.create);
+                String skin=Sp.getString("skin_color", "#03A9F4");
+                ba1.positiveColor(Color.parseColor(skin));
+                ba1.negativeColor(Color.parseColor(skin));
+                ba1.callback(new MaterialDialog.Callback() {
+                    @Override
+                    public void onPositive(MaterialDialog materialDialog) {
                         try {
                             File a = new File(edir.getText().toString());
-                            if (a.exists()) {
+                            if (a.isDirectory()) {
                                 s.addS(a);
                                 b.items.add(a);
                                 b.notifyDataSetChanged();
                                 Toast.makeText(getActivity(), utils.getString(getActivity(), R.string.success), Toast.LENGTH_LONG).show();
                             } else {
-                                Toast.makeText(getActivity(), utils.getString(getActivity(), R.string.filenotexists), Toast.LENGTH_LONG).show();
+                                Toast.makeText(getActivity(), utils.getString(getActivity(), R.string.invalid_dir), Toast.LENGTH_LONG).show();
                             }
                         } catch (Exception e) {
                             // TODO Auto-generated catch block
                             Toast.makeText(getActivity(), utils.getString(getActivity(), R.string.error), Toast.LENGTH_LONG).show();
-                        }
-                        // TODO: Implement this method
+                        }m.updateDrawer();
+                    }
+
+                    @Override
+                    public void onNegative(MaterialDialog materialDialog) {
+
                     }
                 });
-                ba1.show();
+                ba1.build().show();
 
             }
         });
 
-        ((LinearLayout) getActivity().findViewById(R.id.buttons))
-                .setVisibility(View.GONE);
-        Sp = PreferenceManager.getDefaultSharedPreferences(getActivity());
         icons = new IconUtils(Sp, getActivity());
-         vl = getListView();
+         vl = listview;
         vl.setFastScrollEnabled(true);
         if (savedInstanceState == null)
             refresh();
@@ -141,79 +199,55 @@ ListView vl;
             b.putInt("top", top);
         }
     }
-    @Override
-    public void onCreateOptionsMenu(Menu menu, MenuInflater inflater) {
-        super.onCreateOptionsMenu(menu, inflater);
-        inflater.inflate(R.menu.activity_extra, menu);
-        hideOption(R.id.item3, menu);
-        hideOption(R.id.item4, menu);
-        hideOption(R.id.item9, menu);
-        hideOption(R.id.item11, menu);
-        hideOption(R.id.item10, menu);
-    }
-
-    private void hideOption(int id, Menu menu) {
-        MenuItem item = menu.findItem(id);
-        item.setVisible(false);
-    }
-
-    public boolean onOptionsItemSelected(MenuItem item) { // Handleitem
-        // selection
-        switch (item.getItemId()) {
-            default:
-
-                AlertDialog.Builder ba1 = new AlertDialog.Builder(getActivity());
-                ba1.setTitle(utils.getString(getActivity(), R.string.addbook));
-                View v = getActivity().getLayoutInflater().inflate(R.layout.dialog, null);
-                final EditText edir = (EditText) v.findViewById(R.id.newname);
-                edir.setHint(utils.getString(getActivity(), R.string.enterpath));
-                ba1.setView(v);
-                ba1.setNegativeButton(utils.getString(getActivity(), R.string.cancel), new DialogInterface.OnClickListener() {
-
-                    public void onClick(DialogInterface p1, int p2) {
-                        // TODO: Implement this method
-                    }
-                });
-                ba1.setPositiveButton(utils.getString(getActivity(), R.string.create), new DialogInterface.OnClickListener() {
-
-                    public void onClick(DialogInterface p1, int p2) {
-                        try {
-                            File a = new File(edir.getText().toString());
-                            if (a.exists()) {
-                                s.addS(a);
-                                b.items.add(a);
-                                b.notifyDataSetChanged();
-                                Toast.makeText(getActivity(), utils.getString(getActivity(), R.string.success), Toast.LENGTH_LONG).show();
-                            } else {
-                                Toast.makeText(getActivity(), utils.getString(getActivity(), R.string.filenotexists), Toast.LENGTH_LONG).show();
-                            }
-                        } catch (Exception e) {
-                            // TODO Auto-generated catch block
-                            Toast.makeText(getActivity(), utils.getString(getActivity(), R.string.error), Toast.LENGTH_LONG).show();
-                        }
-                        // TODO: Implement this method
-                    }
-                });
-                ba1.show();
-
-                break;
-        }
-        return super.onOptionsItemSelected(item);
-    }
 
     public void refresh() {
-        try {
-            bx = s.readS();
-            b = new BooksAdapter(getActivity(), R.layout.bookmarkrow, bx, this);
-            setListAdapter(b);
-        } catch (IOException e) {
-        } catch (SAXException e) {
-        } catch (ParserConfigurationException e) {
+
+        new LoadList().execute();
+
+    }
+    public class LoadList extends AsyncTask<Void, Void, ArrayList<File>> {
+
+        public LoadList() {
+
+        }
+
+        @Override
+        protected void onPreExecute() {
+        }
+
+
+        @Override
+        // Actual download method, run in the task thread
+        protected ArrayList<File> doInBackground(Void... params) {
+
+            // params comes from the execute() call: params[0] is the url.
+            try {
+
+                bx = s.readS();
+                if(bx==null || bx.size()==0){
+                     s.makeS();
+                    bx=s.readS();
+                }
+            } catch (Exception e) {
+                try {
+                    s.makeS();
+                    bx=s.readS();
+                } catch (Exception e1) {
+                    e1.printStackTrace();
+                }
+            }
+            return bx;
+        }
+        @Override
+        // Once the image is downloaded, associates it to the imageView
+        protected void onPostExecute(ArrayList<File> bitmap) {
+            refresh(bitmap);
         }
     }
 
     public void refresh(ArrayList<File> f) {
-        b = new BooksAdapter(getActivity(), R.layout.bookmarkrow, f, this);
-        setListAdapter(b);
+        b = new BooksAdapter(c, R.layout.bookmarkrow, f, this);
+        listview.setAdapter(b);
+        swipeRefreshLayout.setRefreshing(false);
     }
 }

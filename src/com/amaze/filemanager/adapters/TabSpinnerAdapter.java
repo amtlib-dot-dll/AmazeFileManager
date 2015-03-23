@@ -23,6 +23,8 @@ import android.app.Activity;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.graphics.Color;
+import android.graphics.ColorMatrix;
+import android.graphics.ColorMatrixColorFilter;
 import android.graphics.Typeface;
 import android.preference.PreferenceManager;
 import android.view.LayoutInflater;
@@ -35,15 +37,18 @@ import android.widget.ImageButton;
 import android.widget.LinearLayout;
 import android.widget.Spinner;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import com.amaze.filemanager.R;
 import com.amaze.filemanager.database.Tab;
 import com.amaze.filemanager.database.TabHandler;
 import com.amaze.filemanager.fragments.Main;
+import com.amaze.filemanager.fragments.TabFragment;
 
 import java.io.File;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.HashMap;
 
 /**
  * Created by Vishal on 10/8/2014.
@@ -51,18 +56,45 @@ import java.util.ArrayList;
 public class TabSpinnerAdapter extends ArrayAdapter<String> {
     ArrayList<String> items;
     Context context;
-    android.support.v4.app.FragmentManager fragmentTransaction;
     Spinner spinner;
-    Main ma;
-
-    public TabSpinnerAdapter(Context context, int resource, ArrayList<String> items, android.support.v4.app.FragmentManager fragmentTransaction, Spinner spin) {
+    TabFragment tabFragment;
+    HashMap<String,Float[]> colors=new HashMap<String,Float[]>();
+    Float[] color;
+    String skin;
+    public TabSpinnerAdapter(Context context, int resource, ArrayList<String> items, Spinner spin,TabFragment tabFragment) {
         super(context, resource, items);
         this.items = items;
         this.context = context;
         this.spinner=spin;
-        this.fragmentTransaction = fragmentTransaction;
+        this.tabFragment=tabFragment;
+        putColors();
+        final SharedPreferences sharedPreferences1 = PreferenceManager.getDefaultSharedPreferences(context);
+        skin = sharedPreferences1.getString("skin_color", "#03A9F4");
+        color=colors.get(skin);
+        if(color==null){color=colors.get("#03A9F4");}
     }
 
+    void putColor(String x,float a,float b,float c){colors.put(x,new Float[]{a,b,c});}
+    void putColors(){putColor("#F44336",0.956862f,0.2627450f,0.21176470f);
+        putColor("#e91e63",0.91372549f,0.11764706f,0.38823529f);
+        putColor("#9c27b0",0.61176471f,0.15294118f,0.69019608f);
+        putColor("#673ab7",0.40392157f,0.22745098f,0.71764706f);
+        putColor("#3f51b5",0.24705882f,0.31764706f,0.70980392f);
+        putColor("#2196F3",0.12941176f,0.58823529f,0.952941176470f);
+        putColor("#03A9F4",0.01176470f,0.66274509f,0.9568627450f);
+        putColor("#00BCD4",0.0f,0.73725490f,0.831372549f);
+        putColor("#009688",0.0f,0.58823529f,0.53333f);
+        putColor("#4CAF50",0.298039f,0.68627450f,0.31372549f);
+        putColor("#8bc34a",0.54509804f,0.76470588f,0.29019608f);
+        putColor("#FFC107",1.0f,0.7568627450f,0.0274509f);
+        putColor("#FF9800",1.0f,0.596078f,0.0f);
+        putColor("#FF5722",1.0f,0.341176470f,0.1333333f);
+        putColor("#795548",0.4745098f,0.3333f,0.28235294f);
+        putColor("#212121",0.12941176f,0.12941176f,0.12941176f);
+        putColor("#607d8b",0.37647059f,0.49019608f,0.54509804f);
+        putColor("#004d40",0.0f, 0.301960f, 0.250980f);
+
+    }
     @Override
     public View getView(int position, View convertView, ViewGroup parent) {
 
@@ -70,8 +102,14 @@ public class TabSpinnerAdapter extends ArrayAdapter<String> {
         View row = inflater.inflate(R.layout.spinner_layout, parent, false);
 
         TextView textView = (TextView) row.findViewById(R.id.spinnerText);
-        textView.setText(items.get(position));
-        LinearLayout linearLayout = (LinearLayout) row.findViewById(R.id.textParent);
+        try {
+            if(items.get(position).equals("/"))
+                textView.setText(R.string.rootdirectory);
+            else
+                textView.setText(new File(items.get(position)).getName());
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
 
         return row;
     }
@@ -81,57 +119,43 @@ public class TabSpinnerAdapter extends ArrayAdapter<String> {
 
         LayoutInflater inflater = (LayoutInflater) getContext().getSystemService(Context.LAYOUT_INFLATER_SERVICE);
         View row = inflater.inflate(R.layout.spinner_dropdown_layout, parent, false);
-
-        ma = ((Main) fragmentTransaction.findFragmentById(R.id.content_frame));
         final TextView textView = (TextView) row.findViewById(R.id.spinnerText);
-        LinearLayout linearLayout = (LinearLayout) row.findViewById(R.id.textParent);
-        final SharedPreferences sharedPreferences1 = PreferenceManager.getDefaultSharedPreferences(context);
-        String skin = sharedPreferences1.getString("skin_color", "#673ab7");
-        final int spinner_current = sharedPreferences1.getInt("spinner_selected", 0);
-        ImageButton imageButton = (ImageButton) row.findViewById(R.id.spinnerButton);
-
-        textView.setText(items.get(position));
-        imageButton.setBackgroundColor(Color.parseColor(skin));
-
-        if (position == spinner_current) {
-
-            textView.setTextColor(Color.parseColor(skin));
-            textView.setTypeface(null, Typeface.BOLD);
-
+        if(tabFragment.theme1==1) {
+            row.setBackgroundResource(R.drawable.spinner_row_dark);
+            textView.setTextColor(Color.parseColor("#ffffff"));
         }
+        LinearLayout linearLayout = (LinearLayout) row.findViewById(R.id.textParent);
+        ImageButton imageButton = (ImageButton) row.findViewById(R.id.spinnerButton);
+        if(items.get(position).equals("/"))
+            textView.setText(R.string.rootdirectory);
+        else
+        textView.setText(new File(items.get(position)).getName());
+        imageButton.setVisibility(View.VISIBLE);
+        if (position == tabFragment.mViewPager.getCurrentItem()) {
+            float[] src = {
 
-        linearLayout.setOnClickListener(new View.OnClickListener() {
+                    color[0], 0, 0, 0, 0,
+                    0, color[1], 0, 0, 0,
+                    0, 0,  color[2],0, 0,
+                    0, 0, 0, 1, 0
+            };
+            ColorMatrix colorMatrix = new ColorMatrix(src);
+            ColorMatrixColorFilter colorMatrixColorFilter = new ColorMatrixColorFilter(colorMatrix);
+            imageButton.setColorFilter(colorMatrixColorFilter);
+            textView.setTextColor(Color.parseColor(skin));
+       //     textView.setTypeface(null, Typeface.BOLD);
+
+        } imageButton.setVisibility(View.GONE);
+        row.setOnClickListener(new View.OnClickListener() {
 
             @Override
             public void onClick(View view) {
 
                 hideSpinnerDropDown(spinner);
 
-                if (position == spinner_current) {
-                }
-                else {
+                if (position != tabFragment.mViewPager.getCurrentItem()) {
 
-                    TabHandler tabHandler1 = new TabHandler(context, null, null, 1);
-                    Tab tab = tabHandler1.findTab(position);
-                    String name  = tab.getPath();
-                    //Toast.makeText(getActivity(), name, Toast.LENGTH_SHORT).show();
-                    sharedPreferences1.edit().putString("current", name).apply();
-                    sharedPreferences1.edit().putInt("spinner_selected", position).apply();
-
-                    Main ma = ((Main) fragmentTransaction.findFragmentById(R.id.content_frame));
-                    ma.loadlist(new File(tab.getPath()),false);
-
-                    Animation animationLeft = AnimationUtils.loadAnimation(getContext(), R.anim.tab_selection_left);
-                    Animation animationRight = AnimationUtils.loadAnimation(getContext(), R.anim.tab_selection_right);
-
-                    if (position < spinner_current) {
-                        ma.listView.setAnimation(animationLeft);
-                        ma.gridView.setAnimation(animationLeft);
-                    } else {
-                        ma.listView.setAnimation(animationRight);
-                        ma.gridView.setAnimation(animationRight);
-                    }
-
+                    tabFragment.mViewPager.setCurrentItem(position,true);
                 }
             }
         });
@@ -139,82 +163,7 @@ public class TabSpinnerAdapter extends ArrayAdapter<String> {
         imageButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-
-
-                TabHandler tabHandler = new TabHandler(context, null, null, 1);
-                Tab tab = tabHandler.findTab(position);
-                if (position > spinner_current) {
-
-                    //Toast.makeText(getContext(), "Closed", Toast.LENGTH_SHORT).show();
-                    items.remove(position);
-
-                    int old_tab = tab.getTab();
-                    int a;
-                    for (a = old_tab; a < tabHandler.getTabsCount()-1; a++) {
-
-                        int new_tab = a + 1;
-                        Tab tab1 = tabHandler.findTab(new_tab);
-                        String next_label = tab1.getLabel();
-                        String next_path = tab1.getPath();
-                        tabHandler.updateTab(new Tab(a, next_label, next_path));
-                    }
-                    tabHandler.deleteTab(tabHandler.getTabsCount()-1);
-                    hideSpinnerDropDown(spinner);
-
-                } else if (position < spinner_current) {
-
-                   // Toast.makeText(getContext(), "Closed", Toast.LENGTH_SHORT).show();
-                    items.remove(position);
-                    int old_tab = tab.getTab();
-                    int a;
-                    for (a = old_tab; a < tabHandler.getTabsCount()-1; a++) {
-
-                        int new_tab = a + 1;
-                        Tab tab1 = tabHandler.findTab(new_tab);
-                        String next_label = tab1.getLabel();
-                        String next_path = tab1.getPath();
-                        tabHandler.updateTab(new Tab(a, next_label, next_path));
-                    }
-                    tabHandler.deleteTab(tabHandler.getTabsCount()-1);
-                    int older_spinner_selected = sharedPreferences1.getInt("spinner_selected", 0);
-                    older_spinner_selected--;
-                    sharedPreferences1.edit().putInt("spinner_selected", older_spinner_selected).apply();
-                    hideSpinnerDropDown(spinner);
-
-                } else if (position == spinner_current) {
-
-                    if (tabHandler.getTabsCount() == 1) {
-                        // Toast.makeText(getContext(), "exits the app", Toast.LENGTH_SHORT).show();
-                        ma.home();
-
-                    } else if (tabHandler.getTabsCount()-1 > position) {
-                        items.remove(position);
-                        int old_tab = tab.getTab();
-                        int a;
-                        for (a = old_tab; a < tabHandler.getTabsCount()-1; a++) {
-
-                            int new_tab = a + 1;
-                            Tab tab1 = tabHandler.findTab(new_tab);
-                            String next_label = tab1.getLabel();
-                            String next_path = tab1.getPath();
-                            tabHandler.updateTab(new Tab(a, next_label, next_path));
-                        }
-                        tabHandler.deleteTab(tabHandler.getTabsCount()-1);
-                        Tab tab1 = tabHandler.findTab(spinner_current);
-                        ma.loadlist(new File(tab1.getPath()),false);
-
-                    } else if (tabHandler.getTabsCount()-1 == position) {
-                        items.remove(position);
-                        tabHandler.deleteTab(tabHandler.getTabsCount()-1);
-
-                        int older_spinner_selected = sharedPreferences1.getInt("spinner_selected", 0);
-                        older_spinner_selected--;
-                        sharedPreferences1.edit().putInt("spinner_selected", older_spinner_selected).apply();
-                        Tab tab1 = tabHandler.findTab(older_spinner_selected);
-                        Main ma = ((Main) fragmentTransaction.findFragmentById(R.id.content_frame));
-                        ma.loadlist(new File(tab1.getPath()),false);
-                    }
-                }
+   hideSpinnerDropDown(spinner);
             }
         });
         return row;
@@ -228,16 +177,5 @@ public class TabSpinnerAdapter extends ArrayAdapter<String> {
         } catch (Exception e) {
             e.printStackTrace();
         }
-    }
-
-    public static void restartPC(final Activity activity) {
-        if (activity == null)
-            return;
-        final int enter_anim = android.R.anim.fade_in;
-        final int exit_anim = android.R.anim.fade_out;
-        activity.overridePendingTransition(enter_anim, exit_anim);
-        activity.finish();
-        activity.overridePendingTransition(enter_anim, exit_anim);
-        activity.startActivity(activity.getIntent());
     }
 }

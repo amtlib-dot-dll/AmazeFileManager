@@ -25,7 +25,9 @@ import android.content.pm.*;
 import android.content.res.Resources;
 import android.graphics.*;
 import android.graphics.drawable.*;
+import android.media.ThumbnailUtils;
 import android.os.*;
+import android.provider.MediaStore;
 import android.widget.*;
 import com.amaze.filemanager.*;
 import java.io.*;
@@ -187,22 +189,37 @@ public class IconHolder {
         private Bitmap loadDrawable(File fso) {
             final String filePath = (fso.getPath());
 
-            if (Icons.isApk(filePath)) {
-                return getAppDrawable(fso);
-            }else if(Icons.isPicture(filePath)){
-			return	loadImage(fso.getPath());
-			}
+            try {
+                if (Icons.isApk(filePath)) {
+                    return getAppDrawable(fso);
+                }else if(Icons.isPicture(filePath)){
+                return	loadImage(fso.getPath());
+                }else if(Icons.isVideo(filePath))
+                    return getVideoDrawable(fso);
+            } catch (OutOfMemoryError outOfMemoryError) {
+               cleanup();
+                shutdownWorker();
+            }
 
             return null;
         }
-
-        /**
+    private Bitmap getVideoDrawable(File fso) throws OutOfMemoryError{
+        String path = fso.getPath();
+        try {
+            Bitmap thumb = ThumbnailUtils.createVideoThumbnail(path,
+                    MediaStore.Images.Thumbnails.MINI_KIND);
+            return thumb;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
+    }/**
          * Method that returns the main icon of the app
          *
          * @param fso The FileSystemObject
          * @return Drawable The drawable or null if cannot be extracted
          */
-        private Bitmap getAppDrawable(File fso) {
+        private Bitmap getAppDrawable(File fso) throws OutOfMemoryError{
             String path=fso.getPath();
             Bitmap bitsat;
             try {
@@ -226,7 +243,7 @@ public class IconHolder {
         }
 
 
-		public Bitmap loadImage(String path){
+		public Bitmap loadImage(String path) throws OutOfMemoryError{
 			Bitmap bitsat;
             Resources res=mContext.getResources();
             int dp=50;

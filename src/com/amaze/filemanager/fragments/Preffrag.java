@@ -22,11 +22,14 @@ package com.amaze.filemanager.fragments;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.Dialog;
+import android.content.ActivityNotFoundException;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.graphics.Color;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.preference.CheckBoxPreference;
 import android.preference.ListPreference;
@@ -40,14 +43,22 @@ import android.webkit.WebView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.afollestad.materialdialogs.MaterialDialog;
+import com.afollestad.materialdialogs.Theme;
 import com.amaze.filemanager.R;
+import com.amaze.filemanager.activities.Preferences;
 import com.stericson.RootTools.RootTools;
 
+import java.io.File;
 import java.util.Calendar;
 import java.util.Random;
 
 public class Preffrag extends PreferenceFragment {
     int theme;
+    SharedPreferences sharedPref;
+    String skin;
+    private int COUNT = 0;
+    private Toast toast;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -56,11 +67,12 @@ public class Preffrag extends PreferenceFragment {
         // Load the preferences from an XML resource
         addPreferencesFromResource(R.xml.preferences);
 
-        final SharedPreferences sharedPref = PreferenceManager.getDefaultSharedPreferences(getActivity());
+        sharedPref = PreferenceManager.getDefaultSharedPreferences(getActivity());
+        skin = sharedPref.getString("skin_color", "#03A9F4");
         Calendar calendar = Calendar.getInstance();
         int hour = calendar.get(Calendar.HOUR_OF_DAY);
 
-        final ListPreference ui = (ListPreference) findPreference("uimode");
+        final Preference ui = (Preference) findPreference("uimode");
         int th1 = Integer.parseInt(sharedPref.getString("theme", "0"));
         theme = th1;
         if (th1 == 2) {
@@ -70,42 +82,140 @@ public class Preffrag extends PreferenceFragment {
             } else
                 theme = 0;
         }if(th1==1){ui.setEnabled(false);}
-        ListPreference th = (ListPreference) findPreference("theme");
-        th.setOnPreferenceChangeListener(new ListPreference.OnPreferenceChangeListener() {
-
-            public boolean onPreferenceChange(Preference p1, Object p2) {
-                if(!sharedPref.getString("theme","0").equals("0"))
-                sharedPref.edit().putString("uimode","0").commit();
-                    restartPC(getActivity());
-                // TODO: Implement this method
+        findPreference("columns").setOnPreferenceClickListener(new Preference.OnPreferenceClickListener() {
+            @Override
+            public boolean onPreferenceClick(Preference preference) {
+                final String[] sort = getResources().getStringArray(R.array.columns);
+                MaterialDialog.Builder a = new MaterialDialog.Builder(getActivity());
+                if(theme==1)a.theme(Theme.DARK);
+                a.title(R.string.gridcolumnno);
+                int current = Integer.parseInt(sharedPref.getString("columns", "0"));
+                if(current!=0)current=current-2;
+                else current=1;
+                a.items(sort).itemsCallbackSingleChoice(current, new MaterialDialog.ListCallback() {
+                    @Override
+                    public void onSelection(MaterialDialog dialog, View view, int which, CharSequence text) {
+                        sharedPref.edit().putString("columns", "" + sort[which]).commit();
+                        dialog.dismiss();
+                    }
+                });
+                a.build().show();
+                return true;
+            }
+        });
+        findPreference("uimode").setOnPreferenceClickListener(new Preference.OnPreferenceClickListener() {
+            @Override
+            public boolean onPreferenceClick(Preference preference) {
+                String[] sort = getResources().getStringArray(R.array.uimode);
+                MaterialDialog.Builder a = new MaterialDialog.Builder(getActivity());
+                if(theme==1)a.theme(Theme.DARK);
+                a.title(R.string.directorysort);
+                int current = Integer.parseInt(sharedPref.getString("uimode", "0"));
+                a.items(sort).itemsCallbackSingleChoice(current, new MaterialDialog.ListCallback() {
+                    @Override
+                    public void onSelection(MaterialDialog dialog, View view, int which, CharSequence text) {
+                        sharedPref.edit().putString("uimode", "" + which).commit();
+                        dialog.dismiss();
+                    }
+                });
+                a.build().show();
+                return true;
+            }
+        });
+        if(Build.VERSION.SDK_INT>=21)
+        findPreference("colorednavigation").setOnPreferenceClickListener(new Preference.OnPreferenceClickListener() {
+            @Override
+            public boolean onPreferenceClick(Preference preference) {
+                restartPC(getActivity());
+                return false;
+            }
+        });
+        findPreference("dirontop").setOnPreferenceClickListener(new Preference.OnPreferenceClickListener() {
+            @Override
+            public boolean onPreferenceClick(Preference preference) {
+                String[] sort = getResources().getStringArray(R.array.directorysortmode);
+                MaterialDialog.Builder a = new MaterialDialog.Builder(getActivity());
+                if(theme==1)a.theme(Theme.DARK);
+                a.title(R.string.directorysort);
+                int current = Integer.parseInt(sharedPref.getString("dirontop", "0"));
+                a.items(sort).itemsCallbackSingleChoice(current, new MaterialDialog.ListCallback() {
+                    @Override
+                    public void onSelection(MaterialDialog dialog, View view, int which, CharSequence text) {
+                        sharedPref.edit().putString("dirontop", "" + which).commit();
+                        dialog.dismiss();
+                    }
+                });
+                a.build().show();
                 return true;
             }
         });
 
+        findPreference("theme").setOnPreferenceClickListener(new Preference.OnPreferenceClickListener() {
+            @Override
+            public boolean onPreferenceClick(Preference preference) {
+                String[] sort = getResources().getStringArray(R.array.theme);
+                int current = Integer.parseInt(sharedPref.getString("theme", "0"));
+                MaterialDialog.Builder a = new MaterialDialog.Builder(getActivity());
+                if(theme==1)a.theme(Theme.DARK);
+                a.items(sort).itemsCallbackSingleChoice(current, new MaterialDialog.ListCallback() {
+                    @Override
+                    public void onSelection(MaterialDialog dialog, View view, int which, CharSequence text) {
+                        sharedPref.edit().putString("theme", "" + which).commit();
+                        if(which!=0)
+                            sharedPref.edit().putString("uimode","0").commit();
+                        dialog.dismiss();
+                        restartPC(getActivity());}
+                });
+                a.title(R.string.theme);
+                a.build().show();
+                return true;
+            }
+        });
+        findPreference("sortby").setOnPreferenceClickListener(new Preference.OnPreferenceClickListener() {
+            @Override
+            public boolean onPreferenceClick(Preference preference) {
+                String[] sort = getResources().getStringArray(R.array.sortby);
+                int current = Integer.parseInt(sharedPref.getString("sortby", "0"));
+                MaterialDialog.Builder a = new MaterialDialog.Builder(getActivity());
+                if(theme==1)a.theme(Theme.DARK);
+                a.items(sort).itemsCallbackSingleChoice(current, new MaterialDialog.ListCallback() {
+                    @Override
+                    public void onSelection(MaterialDialog dialog, View view, int which, CharSequence text) {
+
+                        sharedPref.edit().putString("sortby", "" + which).commit();
+                        dialog.dismiss();    }
+                });
+                a.title(R.string.sortby);
+                a.build().show();
+                return true;
+            }
+        });
         final Preference preference = (Preference) findPreference("skin");
         final int current = Integer.parseInt(sharedPref.getString("skin", ""+6));
         preference.setOnPreferenceClickListener(new Preference.OnPreferenceClickListener() {
             @Override
             public boolean onPreferenceClick(Preference preference) {
 
+                final int current = Integer.parseInt(sharedPref.getString("skin", ""+6));
                 final String[] colors = new String[]{
-                        "#e51c23",
+                        "#F44336",
                         "#e91e63",
                         "#9c27b0",
                         "#673ab7",
                         "#3f51b5",
-                        "#5677fc",
-                        "#0288d1",
-                        "#0097a7",
+                        "#2196F3",
+                        "#03A9F4",
+                        "#00BCD4",
                         "#009688",
-                        "#259b24",
+                        "#4CAF50",
                         "#8bc34a",
-                        "#ffa000",
-                        "#f57c00",
-                        "#e64a19",
+                        "#FFC107",
+                        "#FF9800",
+                        "#FF5722",
                         "#795548",
                         "#212121",
-                        "#607d8b"
+                        "#607d8b",
+                        "#004d40"
                 };
 
                 new AlertDialog.Builder(getActivity())
@@ -191,25 +301,47 @@ public class Preffrag extends PreferenceFragment {
             @Override
             public boolean onPreferenceClick(Preference preference) {
 
-                AlertDialog.Builder alertDialog = new AlertDialog.Builder(getActivity());
+                MaterialDialog.Builder a = new MaterialDialog.Builder(getActivity());
+                skin = sharedPref.getString("skin_color", "#03A9F4");
+                if(theme==1)
+                    a.theme(Theme.DARK);
+
+                a.positiveText(R.string.close);
+                a.positiveColor(Color.parseColor(skin));
                 LayoutInflater layoutInflater = (LayoutInflater) getActivity().getSystemService(Context.LAYOUT_INFLATER_SERVICE);
                 View view = layoutInflater.inflate(R.layout.authors, null);
-                alertDialog.setView(view);
-                alertDialog.setTitle(R.string.authors);
-                alertDialog.setNegativeButton(R.string.close, new DialogInterface.OnClickListener() {
+                a.customView(view);
+                a.title(R.string.authors);
+                a.callback(new MaterialDialog.Callback() {
+                    @Override
+                    public void onPositive(MaterialDialog materialDialog) {
+
+                        materialDialog.cancel();
+                    }
+
+                    @Override
+                    public void onNegative(MaterialDialog materialDialog) {
+
+                    }
+                });
+                /*a.setNegativeButton(R.string.close, new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialogInterface, int i) {
                         dialogInterface.cancel();
                     }
-                });
-                alertDialog.show();
+                });*/
+                a.build().show();
 
                 final Intent intent = new Intent(Intent.ACTION_VIEW);
 
                 TextView googlePlus1 = (TextView) view.findViewById(R.id.googlePlus1);
+                googlePlus1.setTextColor(Color.parseColor(skin));
                 TextView googlePlus2 = (TextView) view.findViewById(R.id.googlePlus2);
+                googlePlus2.setTextColor(Color.parseColor(skin));
                 TextView git1 = (TextView) view.findViewById(R.id.git1);
+                git1.setTextColor(Color.parseColor(skin));
                 TextView git2 = (TextView) view.findViewById(R.id.git2);
+                git2.setTextColor(Color.parseColor(skin));
 
                 googlePlus1.setOnClickListener(new View.OnClickListener() {
                     @Override
@@ -251,25 +383,38 @@ public class Preffrag extends PreferenceFragment {
             @Override
             public boolean onPreferenceClick(Preference preference) {
 
-                new AlertDialog.Builder(getActivity())
-                        .setTitle(R.string.changelog)
-                        .setMessage(Html.fromHtml(getActivity().getString(R.string.changelog_version_1) +
-                            getActivity().getString(R.string.changelog_change_1)))
-                        .setNegativeButton(R.string.fullChangelog, new DialogInterface.OnClickListener() {
-                            @Override
-                            public void onClick(DialogInterface dialogInterface, int i) {
+                MaterialDialog.Builder a = new MaterialDialog.Builder(getActivity());
+                if(theme==1)a.theme(Theme.DARK);
+                a.title(R.string.changelog);
+                a.content(Html.fromHtml(getActivity().getString(R.string.changelog_version_5) +
+                        getActivity().getString(R.string.changelog_change_5) +
+                        getActivity().getString(R.string.changelog_version_4) +
+                        getActivity().getString(R.string.changelog_change_4) +
+                        getActivity().getString(R.string.changelog_version_3) +
+                        getActivity().getString(R.string.changelog_change_3) +
+                        getActivity().getString(R.string.changelog_version_2) +
+                        getActivity().getString(R.string.changelog_change_2) +
+                        getActivity().getString(R.string.changelog_version_1) +
+                        getActivity().getString(R.string.changelog_change_1)));
+                a.negativeText(R.string.close);
+                a.negativeColor(Color.parseColor(skin));
+                a.positiveText(R.string.fullChangelog);
+                a.positiveColor(Color.parseColor(skin));
+                a.callback(new MaterialDialog.Callback() {
+                    @Override
+                    public void onPositive(MaterialDialog materialDialog) {
 
-                                Intent intent = new Intent(Intent.ACTION_VIEW,
-                                        Uri.parse("https://github.com/arpitkh96/AmazeFileManager/commits/master"));
-                                startActivity(intent);
-                            }
-                        })
-                        .setPositiveButton(R.string.ok, new DialogInterface.OnClickListener() {
-                            @Override
-                            public void onClick(DialogInterface dialogInterface, int i) {
-                                dialogInterface.cancel();
-                            }
-                        }).show();
+                        Intent intent = new Intent(Intent.ACTION_VIEW,
+                                Uri.parse("https://github.com/arpitkh96/AmazeFileManager/commits/master"));
+                        startActivity(intent);
+                    }
+
+                    @Override
+                    public void onNegative(MaterialDialog materialDialog) {
+
+                        materialDialog.cancel();
+                    }
+                }).build().show();
                 return false;
             }
         });
@@ -362,7 +507,89 @@ public class Preffrag extends PreferenceFragment {
                         "<ul><li>FloatingActionButton</ul></li>" +	//FloatingActionBar
                         "<p style = 'background-color:#eeeeee;padding-left:1em'><code>" +
                         "<br>/*<br>" +
-                        "&nbsp;* Copyright 2014 Jerzy Chalupski<br>" +
+                        "&nbsp;* The MIT License (MIT)<br>" +
+                        "&nbsp;*<br>" +
+                        "&nbsp;* Copyright (c) 2014 Oleksandr Melnykov<br>" +
+                        "&nbsp;*<br>" +
+                        "&nbsp;* Permission is hereby granted, free of charge, to any person obtaining a copy<br>" +
+                        "&nbsp;* of this software and associated documentation files (the \"Software\"), to deal<br>" +
+                        "&nbsp;* in the Software without restriction, including without limitation the rights<br>" +
+                        "&nbsp;* to use, copy, modify, merge, publish, distribute, sublicense, and/or sell<br>" +
+                        "&nbsp;* copies of the Software, and to permit persons to whom the Software is<br>" +
+                        "&nbsp;* furnished to do so, subject to the following conditions:" +
+                        "&nbsp;*<br>" +
+                        "&nbsp;* The above copyright notice and this permission notice shall be included in<br>" +
+                        "&nbsp;* all copies or substantial portions of the Software.<br>" +
+                        "&nbsp;* THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR<br>" +
+                        "&nbsp;* IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,<br>" +
+                        "&nbsp;* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE<br>" +
+                        "&nbsp;* AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER<br>" +
+                        "&nbsp;* LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,<br>" +
+                        "&nbsp;* OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN<br>" +
+                        "&nbsp;* THE SOFTWARE.<br>" +
+                        "&nbsp;*/ " +
+                        "<br><br></code></p>" +
+                        "<h3>Notices for libraries:</h3>" +
+                        "<ul><li>Android System Bar Tint</ul></li>" +	// SystemBar tint
+                        "<p style = 'background-color:#eeeeee;padding-left:1em'><code>" +
+                        "<br>/*<br>" +
+                        "&nbsp;* Copyright 2013 readyState Software Limited<br>" +
+                        "&nbsp;* <br>" +
+                        "&nbsp;* Licensed under the Apache License, Version 2.0 (the \"License\");<br>" +
+                        "&nbsp;* you may not use this file except in compliance with the License.<br>" +
+                        "&nbsp;* You may obtain a copy of the License at<br>" +
+                        "&nbsp;* <br>" +
+                        "&nbsp;* &nbsp;&nbsp;&nbsp;http://www.apache.org/licenses/LICENSE-2.0<br>" +
+                        "&nbsp;* <br>" +
+                        "&nbsp;* Unless required by applicable law or agreed to in writing, software<br>" +
+                        "&nbsp;* distributed under the License is distributed on an \"AS IS\" BASIS,<br>" +
+                        "&nbsp;* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.<br>" +
+                        "&nbsp;* See the License for the specific language governing permissions and<br>" +
+                        "&nbsp;* limitations under the License.<br>" +
+                        "&nbsp;*/ " +
+                        "<br><br></code></p>" +
+                        "<h3>Notices for libraries:</h3> " +
+                        "<ul><li>Material Dialogs</ul></li>" +	//Material Dialogs
+                        "<p style = 'background-color:#eeeeee;padding-left:1em'><code>" +
+                        "<br>/*<br>" +
+                        "&nbsp;* The MIT License (MIT)<br>" +
+                        "&nbsp;*<br>" +
+                        "&nbsp;* Copyright (c) 2014 Aidan Michael Follestad<br>" +
+                        "&nbsp;*<br>" +
+                        "&nbsp;* Permission is hereby granted, free of charge, to any person obtaining a copy<br>" +
+                        "&nbsp;* of this software and associated documentation files (the \"Software\"), to deal<br>" +
+                        "&nbsp;* in the Software without restriction, including without limitation the rights<br>" +
+                        "&nbsp;* to use, copy, modify, merge, publish, distribute, sublicense, and/or sell<br>" +
+                        "&nbsp;* copies of the Software, and to permit persons to whom the Software is<br>" +
+                        "&nbsp;* furnished to do so, subject to the following conditions:" +
+                        "&nbsp;*<br>" +
+                        "&nbsp;* The above copyright notice and this permission notice shall be included in<br>" +
+                        "&nbsp;* all copies or substantial portions of the Software.<br>" +
+                        "&nbsp;* THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR<br>" +
+                        "&nbsp;* IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,<br>" +
+                        "&nbsp;* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE<br>" +
+                        "&nbsp;* AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER<br>" +
+                        "&nbsp;* LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,<br>" +
+                        "&nbsp;* OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN<br>" +
+                        "&nbsp;* THE SOFTWARE.<br>" +
+                        "&nbsp;*/ " +
+                        "<br><br></code></p>" +
+                        "<h3>Notices for libraries:</h3>" +
+                        "<ul><li>UnRAR</ul></li>" +	// junRar
+                        "<p style = 'background-color:#eeeeee;padding-left:1em'><code>" +
+                        "<br>/*<br>" +
+                        "&nbsp;* UnRAR - free utility for RAR archives<br>" +
+                        "&nbsp;* License for use and distribution of<br>" +
+                        "&nbsp;* FREE portable version<br>" +
+                        "&nbsp;*/ " +
+                        "<br><br>" +
+                        "https://raw.githubusercontent.com/junrar/junrar/master/license.txt" +
+                        "<br><br></code></p>" +
+                        "<h3>Notices for libraries:</h3>" +
+                        "<ul><li>commons-compress</ul></li>" +	// commons-compress
+                        "<p style = 'background-color:#eeeeee;padding-left:1em'><code>" +
+                        "<br>/*<br>" +
+                        "&nbsp;* Copyright [yyyy] [name of copyright owner]<br>" +
                         "&nbsp;* <br>" +
                         "&nbsp;* Licensed under the Apache License, Version 2.0 (the \"License\");<br>" +
                         "&nbsp;* you may not use this file except in compliance with the License.<br>" +
@@ -408,6 +635,39 @@ public class Preffrag extends PreferenceFragment {
                 Intent intent1 = new Intent(Intent.ACTION_VIEW);
                 intent1.setData(Uri.parse("market://details?id=com.amaze.filemanager"));
                 startActivity(intent1);
+                return false;
+            }
+        });
+
+        //xda
+        Preference preference6 = findPreference("xda");
+        preference6.setOnPreferenceClickListener(new Preference.OnPreferenceClickListener() {
+            @Override
+            public boolean onPreferenceClick(Preference preference) {
+                Uri uri = Uri.parse("http://forum.xda-developers.com/android/apps-games/app-amaze-file-managermaterial-theme-t2937314");
+                Intent intent = new Intent();
+                intent.setData(uri);
+                startActivity(intent);
+                return false;
+            }
+        });
+
+        // studio
+        Preference studio = findPreference("studio");
+        studio.setOnPreferenceClickListener(new Preference.OnPreferenceClickListener() {
+            @Override
+            public boolean onPreferenceClick(Preference preference) {
+                COUNT++;
+                if (COUNT >= 5) {
+                    if (toast!=null)
+                        toast.cancel();
+                    toast = Toast.makeText(getActivity(), "Studio Mode : " + COUNT, Toast.LENGTH_SHORT);
+                    toast.show();
+
+                    sharedPref.edit().putInt("studio", Integer.parseInt(Integer.toString(COUNT) + "000")).apply();
+                } else {
+                    sharedPref.edit().putInt("studio", 0).apply();
+                }
                 return false;
             }
         });

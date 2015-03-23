@@ -19,7 +19,9 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
     -->
 
-<resources>
+<resources
+    xmlns:tools="http://schemas.android.com/tools"
+    tools:ignore="MissingTranslation">
     <string-array name="uimode">
         <item>@string/simple</item>
         <item>@string/card</item>
@@ -57,6 +59,7 @@
         <item>@string/brown</item>
         <item>@string/black</item>
         <item>@string/blue_grey</item>
+        <item>@string/supersu</item>
 
     </string-array>
     <string-array name="directorysortmode">
@@ -68,9 +71,11 @@
         <item>@string/sortName</item>
         <item>@string/lastModified</item>
         <item>@string/sortSize</item>
+        <item>@string/type</item>
         <item>@string/sortNameDesc</item>
         <item>@string/lastModifiedDesc</item>
         <item>@string/sortSizeDesc</item>
+        <item>@string/typeDesc</item>
     </string-array>
 
 
@@ -81,6 +86,8 @@
         <item>3</item>
         <item>4</item>
         <item>5</item>
+        <item>6</item>
+        <item>7</item>
     </string-array>
     <string-array name="ints1">
         <item>0</item>

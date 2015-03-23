@@ -4,37 +4,54 @@ buildscript {
         jcenter()
     }
     dependencies {
-        classpath 'com.android.tools.build:gradle:0.12.+'
+        classpath 'com.android.tools.build:gradle:1.0.0'
     }
 }
 apply plugin: 'com.android.application'
-apply plugin: 'android'
+
 repositories {
     mavenCentral()
     jcenter()
 }
+
 dependencies {
-    compile 'me.drakeet.materialdialog:library:1.0.9'
-    //compile 'com.afollestad:material-dialogs:0.0.8'
-    compile 'com.getbase:floatingactionbutton:1.1.0'
-    compile 'com.pkmmte.view:circularimageview:1.1'
-    compile fileTree(dir: 'libs', include: '*.jar')
-    compile files('libs/RootTools')
-    compile files('libs/libGoogleAnalyticsServices')
-    compile files('nineoldandroids-2.4.0')
+    compile 'com.readystatesoftware.systembartint:systembartint:1.0.3'
+    compile 'com.android.support:appcompat-v7:21.0.+'
+    compile 'com.afollestad:material-dialogs:0.4.4'
+    compile 'com.melnykov:floatingactionbutton:1.0.7'
+    compile 'com.nineoldandroids:library:2.4.0'
+    compile 'com.github.junrar:junrar:0.7'
+    compile 'org.apache.commons:commons-compress:1.8.1'
+    compile fileTree(include: '*.jar', dir: 'libs')
 }
 
 android {
     compileSdkVersion 21
-    buildToolsVersion "19.1.0"
-    packagingOptions{exclude 'AndroidManifest.xml'}
-    packagingOptions{exclude 'bin/AndroidManifest.xml'}
+    buildToolsVersion "21.1.2"
+
     packagingOptions {
         exclude 'proguard-project.txt'
-    }
-    packagingOptions {
         exclude 'project.properties'
+        exclude 'META-INF/LICENSE.txt'
+        exclude 'META-INF/LICENSE'
+        exclude 'META-INF/NOTICE.txt'
+        exclude 'META-INF/NOTICE'
+        exclude 'META-INF/DEPENDENCIES.txt'
+        exclude 'META-INF/DEPENDENCIES'
     }
+
+    signingConfigs {
+        release
+    }
+    buildTypes {
+        release {
+            signingConfig signingConfigs.release
+        }
+    }
+    lintOptions {
+        abortOnError false
+    }
+
     sourceSets {
         main {
             manifest.srcFile 'AndroidManifest.xml'
@@ -58,4 +75,29 @@ android {
         debug.setRoot('build-types/debug')
         release.setRoot('build-types/release')
     }
+}
+
+def Properties props = new Properties()
+def propFile = new File('signing.properties')
+
+if (propFile.canRead()){
+    props.load(new FileInputStream(propFile))
+
+    if (props !=null &&
+        props.containsKey('STORE_FILE')     &&
+        props.containsKey('STORE_PASSWORD') &&
+        props.containsKey('KEY_ALIAS')      &&
+        props.containsKey('KEY_PASSWORD'))
+    {
+        android.signingConfigs.release.storeFile = file(props['STORE_FILE'])
+        android.signingConfigs.release.storePassword = props['STORE_PASSWORD']
+        android.signingConfigs.release.keyAlias = props['KEY_ALIAS']
+        android.signingConfigs.release.keyPassword = props['KEY_PASSWORD']
+    } else {
+        println 'signing.properties found but some entries are missing'
+        android.buildTypes.release.signingConfig = null
+    }
+}else {
+    println 'signing.properties not found'
+    android.buildTypes.release.signingConfig = null
 }

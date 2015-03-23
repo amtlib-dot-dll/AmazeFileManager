@@ -19,6 +19,7 @@
 
 package com.amaze.filemanager.utils;
 
+import com.stericson.RootTools.RootTools;
 import com.stericson.RootTools.execution.Command;
 import com.stericson.RootTools.execution.CommandCapture;
 import com.stericson.RootTools.execution.Shell;
@@ -33,18 +34,67 @@ public class RootHelper
     public static String runAndWait(String cmd,boolean root)
     {
 
-        CommandCapture cc = new CommandCapture(0, false, cmd);
+Command c=new Command(0,cmd) {
+    @Override
+    public void commandOutput(int i, String s) {
 
+    }
+
+    @Override
+    public void commandTerminated(int i, String s) {
+
+    }
+
+    @Override
+    public void commandCompleted(int i, int i2) {
+
+    }
+};
         try
-        {if(root)
-            Shell.runRootCommand(cc);
-            else
-            Shell.runCommand(cc);
+        {RootTools.getShell(root).add(c);}
+        catch (Exception e)
+        {
+            //       Logger.errorST("Exception when trying to run shell command", e);
+
+            return null;
+        }
+
+        if (!waitForCommand(c))
+        {
+            return null;
+        }
+
+        return c.toString();
+    }
+    public static ArrayList<String> runAndWait1(String cmd, final boolean root)
+    {
+        final ArrayList<String> output=new ArrayList<String>();
+Command cc=new Command(1,cmd) {
+    @Override
+    public void commandOutput(int i, String s) {
+        output.add(s);
+//        System.out.println("output "+root+s);
+    }
+
+    @Override
+    public void commandTerminated(int i, String s) {
+
+        System.out.println("error"+root+s);
+
+    }
+
+    @Override
+    public void commandCompleted(int i, int i2) {
+
+    }
+};
+        try {
+            RootTools.getShell(root).add(cc);
         }
         catch (Exception e)
         {
-     //       Logger.errorST("Exception when trying to run shell command", e);
-
+            //       Logger.errorST("Exception when trying to run shell command", e);
+e.printStackTrace();
             return null;
         }
 
@@ -53,9 +103,8 @@ public class RootHelper
             return null;
         }
 
-        return cc.toString();
+        return output;
     }
-
     private static boolean waitForCommand(Command cmd)
     {
         while (!cmd.isFinished())
@@ -77,7 +126,7 @@ public class RootHelper
 
             if (!cmd.isExecuting() && !cmd.isFinished())
             {
-       //         Logger.errorST("Error: Command is not executing and is not finished!");
+                //         Logger.errorST("Error: Command is not executing and is not finished!");
                 return false;
             }
         }
@@ -86,21 +135,29 @@ public class RootHelper
         return true;
     }
 
+
     public static String getCommandLineString(String input) {
         return input.replaceAll(UNIX_ESCAPE_EXPRESSION, "\\\\$1");
     }	private static final String UNIX_ESCAPE_EXPRESSION = "(\\(|\\)|\\[|\\]|\\s|\'|\"|`|\\{|\\}|&|\\\\|\\?)";
-
-    public static ArrayList<String[]> getFilesList(String path,boolean showHidden){
+    static Futils futils=new Futils();
+    public static ArrayList<String[]> getFilesList(boolean showSize,String path,boolean showHidden){
         File f=new File(path);
         ArrayList<String[]> files=new ArrayList<String[]>();
-        if(f.exists() && f.isDirectory()){
-            for(File x:f.listFiles()){
-                if(showHidden){
-                    files.add(new String[]{x.getPath(),"",parseFilePermission(x)});
+        try {
+            if(f.exists() && f.isDirectory()){
+                for(File x:f.listFiles()){
+                    String k="",size="";
+                    if(x.isDirectory())
+                    {k="-1";
+                    if(showSize)size=""+getCount(x);
+                    }else if(showSize)size=""+x.length();
+                    if(showHidden){
+                        files.add(new String[]{x.getPath(),"",parseFilePermission(x),k,futils.getdate(x.lastModified(),"MMM dd, yyyy","15"),size});
+                    }
+                    else{if(!x.isHidden()){files.add(new String[]{x.getPath(),"",parseFilePermission(x),k,futils.getdate(x.lastModified(),"MMM dd, yyyy","15"),size});}}
                 }
-                else{if(!x.isHidden()){files.add(new String[]{x.getPath(),"",parseFilePermission(x)});}}
-            }
-        }
+            }}catch (Exception e){}
+
 
         return files;}
     public static String parseFilePermission(File f){
@@ -109,44 +166,48 @@ public class RootHelper
         if(f.canWrite()){per=per+"w";}
         if(f.canExecute()){per=per+"x";}
         return  per;}
-    public static ArrayList<String[]> getFilesList(String path,boolean root,boolean showHidden)
+    public static ArrayList<String[]> getFilesList(String path,boolean root,boolean showHidden,boolean showSize)
     {
-String cpath=getCommandLineString(path);
-        String p="";
-        if(showHidden)p="a";
-        Futils futils=new Futils();
-        ArrayList<String[]> a=new ArrayList<String[]>();
-        String ls="";
-        if(futils.canListFiles(new File(path))){
-        ls = runAndWait("ls -l"+p+" " + cpath,false);}
-        else if(root){ls = runAndWait("ls -l"+p+" " + cpath,true);}
-        else{return new ArrayList<String[]>();}
-        if (ls == null)
-        {
-      //      Logger.errorST("Error: Could not get list of files in directory: " + path);
-            return new ArrayList<String[]>();
-        }
+        String p = " ";
+        if (showHidden) p = "a ";
+        Futils futils = new Futils();
+        ArrayList<String[]> a = new ArrayList<String[]>();
+        ArrayList<String> ls = new ArrayList<String>();
+        if (root) {
+            if (!path.startsWith("/storage")) {
+                String cpath = getCommandLineString(path);
+                ls = runAndWait1("ls -l" + p + cpath, root);
+                for (String file : ls) {
+                    if (!file.contains("Permission denied"))
+                        try {
+                            String[] array = futils.parseName(file);
+                            array[0] = path + "/" + array[0];
+                            a.add(array);
+                        } catch (Exception e) {
+                            System.out.println(file);
+                            e.printStackTrace();
+                        }
 
-        if (ls.equals("\n") || ls.equals(""))
-        {
-        //    Logger.debug("No files in directory");
-            return new ArrayList<String[]>();
-        }
-        else
-        {
-            List<String> files = Arrays.asList(ls.split("\n"));
-            for (String file : files)
-            {String[] array=futils.parseName(file);
-                array[0]=path+"/"+array[0];
-                a.add(array);
-
+                }
+            } else if (futils.canListFiles(new File(path))) {
+                a = getFilesList(showSize,path, showHidden);
+            } else {
+                a = new ArrayList<String[]>();
             }
-return a;
-
+        } else if (futils.canListFiles(new File(path))) {
+            a = getFilesList(showSize,path, showHidden);
+        } else {
+            a = new ArrayList<String[]>();
         }
+        if (a.size() == 0 && futils.canListFiles(new File(path))) {
+            a = getFilesList(showSize,path, showHidden);
+        }
+        return a;
+
     }
+
     public static Integer getCount(File f){
         if(f.exists() && f.canRead() && f.isDirectory()){
-            try{return f.listFiles().length;}catch(Exception e){return null;}
+            try{return f.listFiles().length;}catch(Exception e){return 0;}
         }
-    return  null;}}
+        return  null;}}

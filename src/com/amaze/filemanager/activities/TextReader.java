@@ -19,206 +19,349 @@
 
 package com.amaze.filemanager.activities;
 
-import android.app.Activity;
+
+import android.content.Context;
+import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
-import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
-import android.support.v4.app.FragmentManager;
-import android.support.v4.widget.DrawerLayout;
+import android.support.v7.app.ActionBarActivity;
+import android.text.Editable;
+import android.text.TextWatcher;
 import android.view.Menu;
 import android.view.MenuItem;
-import android.view.View;
 import android.view.ViewGroup;
+import android.view.Window;
+import android.view.WindowManager;
 import android.widget.EditText;
 import android.widget.FrameLayout;
-import android.widget.ProgressBar;
 import android.widget.Toast;
 
+import com.afollestad.materialdialogs.MaterialDialog;
 import com.amaze.filemanager.R;
+import com.amaze.filemanager.services.asynctasks.MoveFiles;
 import com.amaze.filemanager.utils.Futils;
+import com.amaze.filemanager.utils.RootHelper;
 import com.readystatesoftware.systembartint.SystemBarTintManager;
+import com.stericson.RootTools.RootTools;
 
-import java.io.BufferedReader;
+import org.codehaus.plexus.util.FileUtils;
+
 import java.io.BufferedWriter;
 import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Calendar;
+import java.util.Timer;
+import java.util.TimerTask;
 
-public class TextReader extends Activity {
-    EditText ma;
+public class TextReader extends ActionBarActivity implements TextWatcher {
+
     String path;
-    ProgressBar p;
-    Futils utils=new Futils();;
-    @Override
-    public void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
+    Futils utils = new Futils();
+    Context c = this;
+    boolean rootMode;
+    int theme, theme1;
+    SharedPreferences Sp;
 
+    private EditText mInput;
+    private java.io.File mFile;
+    private String mOriginal, skin;
+    private Timer mTimer;
+    private boolean mModified;
+    private int skinStatusBar;
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        Sp = PreferenceManager.getDefaultSharedPreferences(this);
+        theme = Integer.parseInt(Sp.getString("theme", "0"));
+        theme1 = theme;
+        if (theme == 2) {
+            Calendar calendar = Calendar.getInstance();
+            int hour = calendar.get(Calendar.HOUR_OF_DAY);
+            if (hour <= 6 || hour >= 18) {
+                theme1 = 1;
+            } else
+                theme1 = 0;
+        }
+        if (theme1 == 1) {
+            setTheme(R.style.appCompatDark);
+            getWindow().getDecorView().setBackgroundColor(Color.BLACK);
+        }
         setContentView(R.layout.search);
-        ma = (EditText) findViewById(R.id.fname);
-        p = (ProgressBar) findViewById(R.id.pbar);
-        ma.setVisibility(View.GONE);
-        String skin = PreferenceManager.getDefaultSharedPreferences(this).getString("skin_color", "#5677fc");
-        getActionBar().setBackgroundDrawable(new ColorDrawable(Color.parseColor(skin)));
-        if(Build.VERSION.SDK_INT>=19){
+        android.support.v7.widget.Toolbar toolbar = (android.support.v7.widget.Toolbar) findViewById(R.id.toolbar);
+        setSupportActionBar(toolbar);
+        skin = Sp.getString("skin_color", "#03A9F4");
+        String x = getStatusColor();
+        skinStatusBar = Color.parseColor(x);
+        getSupportActionBar().setBackgroundDrawable(new ColorDrawable(Color.parseColor(skin)));
+        getSupportActionBar().setDisplayHomeAsUpEnabled(true);
+        rootMode = PreferenceManager.getDefaultSharedPreferences(c)
+                .getBoolean("rootmode", false);
+        int sdk= Build.VERSION.SDK_INT;
+
+        if(sdk==20 || sdk==19) {
             SystemBarTintManager tintManager = new SystemBarTintManager(this);
             tintManager.setStatusBarTintEnabled(true);
             tintManager.setStatusBarTintColor(Color.parseColor(skin));
-            FrameLayout a=(FrameLayout)ma.getParent();
-            FrameLayout.MarginLayoutParams p = (ViewGroup.MarginLayoutParams) a.getLayoutParams();
+            FrameLayout.MarginLayoutParams p = (ViewGroup.MarginLayoutParams) findViewById(R.id.texteditor).getLayoutParams();
             SystemBarTintManager.SystemBarConfig config = tintManager.getConfig();
-            p.setMargins(0,config.getPixelInsetTop(true),0,0);
+            p.setMargins(0, config.getStatusBarHeight(), 0, 0);
+        }else if(Build.VERSION.SDK_INT>=21){
+            boolean colourednavigation=Sp.getBoolean("colorednavigation",true);
+            Window window =getWindow();
+            window.addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS);
+            window.clearFlags(WindowManager.LayoutParams.FLAG_TRANSLUCENT_STATUS);
+            window.setStatusBarColor(Color.parseColor(getStatusColor()));
+            if(colourednavigation)
+                window.setNavigationBarColor(Color.parseColor(getStatusColor()));
+
         }
-        path = this.getIntent().getStringExtra("path");
-        if (path != null) {
-            Toast.makeText(this, "" + path, Toast.LENGTH_SHORT).show();
-            new LoadText().execute(path);
+        mInput = (EditText) findViewById(R.id.fname);
+        mInput.addTextChangedListener(this);
+        try {
+            if (theme1 == 1) mInput.setBackgroundColor(Color.parseColor("#000000"));
+            getSupportActionBar().setDisplayHomeAsUpEnabled(true);
+        } catch (Exception e) {
+
+        }
+
+        try {
+            if (getIntent().getData() != null) load(new File(getIntent().getData().getPath()));
+            else load(new File(getIntent().getStringExtra("path")));
+        } catch (Exception e) {
+
+        }
+    }
+
+    private void checkUnsavedChanges() {
+        if (mOriginal != null && !mOriginal.equals(mInput.getText().toString())) {
+            new MaterialDialog.Builder(this)
+                    .title(R.string.unsavedchanges)
+                    .content(R.string.unsavedchangesdesc)
+                    .positiveText(R.string.yes)
+                    .negativeText(R.string.no)
+                    .callback(new MaterialDialog.Callback() {
+                        @Override
+                        public void onPositive(MaterialDialog dialog) {
+                            writeTextFile(mFile.getPath(), mInput.getText().toString());
+                            finish();
+                        }
+
+                        @Override
+                        public void onNegative(MaterialDialog dialog) {
+                            finish();
+                        }
+                    })
+                    .build().show();
         } else {
-            Toast.makeText(this,utils.getString(this,R.string.cant_read_file) , Toast.LENGTH_LONG).show();
             finish();
         }
-        getActionBar().setTitle(new File(path).getName());
-        getActionBar().setSubtitle(path);
+    }
+
+
+    File f;
+
+    public void writeTextFile(String fileName, String s) {
+        f = new File(fileName);
+        mOriginal = s;
+        final String s1 = s;
+        if (!mFile.canWrite()) {
+            f = new File(this.getFilesDir() + "/" + f.getName());
+        }
+        Toast.makeText(c, R.string.saving, Toast.LENGTH_SHORT).show();
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                FileWriter output = null;
+                try {
+                    output = new FileWriter(f.getPath());
+                    BufferedWriter writer = new BufferedWriter(output);
+                    writer.write(s1);
+                    writer.close();
+                    output.close();
+                } catch (IOException e) {
+                    runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            Toast.makeText(c, "error", Toast.LENGTH_SHORT).show();
+                        }
+                    });
+                    e.printStackTrace();
+
+
+                }
+                if (!mFile.canWrite())
+
+                {
+                    RootTools.remount(mFile.getParent(),"rw");
+                    RootHelper.runAndWait("cat "+f.getPath()+" > "+mFile.getPath(),true);
+                    f.delete();
+                }
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+
+                        Toast.makeText(c, "Done", Toast.LENGTH_SHORT).show();
+                    }
+                });
+            }
+        }).start();
+    }
+
+
+    private void setProgress(boolean show) {
+        //mInput.setVisibility(show ? View.GONE : View.VISIBLE);
+        //   findViewById(R.id.progress).setVisibility(show ? View.VISIBLE : View.GONE);
+    }
+
+    private void load(final File mFile) {
+        setProgress(true);
+        this.mFile = mFile;
+        mInput.setHint("Loading...");
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                if (!mFile.exists()) {
+                    finish();
+                    return;
+                }
+
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        setTitle(mFile.getName());
+                    }
+                });
+                try {
+                    if(mFile.canRead())
+                    {try {
+                        mOriginal = FileUtils.fileRead(mFile);
+                    } catch (final Exception e) {
+                        e.printStackTrace();
+                        runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() {
+                                mInput.setHint(R.string.error);
+                            }
+                        });
+                    }}else{
+                        mOriginal="";
+                        RootTools.remount(mFile.getParent(),"rw");
+                    ArrayList<String> arrayList=    RootHelper.runAndWait1("cat "+mFile.getPath(),true);
+                        for(String x:arrayList){
+                            if(mOriginal.equals(""))mOriginal=x;
+                            else mOriginal=mOriginal+"\n"+x;
+
+                        }
+
+
+                    }
+                    runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            try {
+                                mInput.setText(mOriginal);
+                            } catch (OutOfMemoryError e) {
+                                mInput.setHint(R.string.error);
+                            }
+                            setProgress(false);
+                        }
+                    });
+                } catch (final Exception e) {
+                    runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+
+                            mInput.setHint(R.string.error);
+                        }
+                    });
+                }
+            }
+        }).start();
+    }
+
+    @Override
+    public void onBackPressed() {
+        checkUnsavedChanges();
     }
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         getMenuInflater().inflate(R.menu.text, menu);
-        return true;
-    }
-
-    boolean save;
-
-    @Override
-    public boolean onPrepareOptionsMenu(Menu m) {
-
-        return super.onPrepareOptionsMenu(m);
+        menu.findItem(R.id.save).setVisible(mModified);
+        return super.onCreateOptionsMenu(menu);
     }
 
     @Override
-    public boolean onOptionsItemSelected(MenuItem menu) {
-        switch (menu.getItemId()) {
-            case R.id.save:
-                writeTextFile(path, ma.getText().toString());
-                return true;
+    public boolean onOptionsItemSelected(MenuItem item) {
+        if (item.getItemId() == android.R.id.home) {
+            checkUnsavedChanges();
+            return true;
+        } else if (item.getItemId() == R.id.save) {
+            writeTextFile(mFile.getPath(), mInput.getText().toString());
+            return true;
+        } else if (item.getItemId() == R.id.details) {
+            utils.showProps(mFile, c, theme1);
+            return true;
+        } else if (item.getItemId() == R.id.openwith) {
+            utils.openunknown(mFile, c);
         }
-        return super.onOptionsItemSelected(menu);
+        return super.onOptionsItemSelected(item);
     }
 
-    public String readTextFile(String fileName) {
-        String returnValue = "";
-        FileReader file = null;
-        String line = "";
-        try {
-            file = new FileReader(fileName);
-            BufferedReader reader = new BufferedReader(file);
-
-            while ((line = reader.readLine()) != null) {
-                returnValue += line + "\n";
-
-            }
-            reader.close();
-        } catch (FileNotFoundException e) {
-            Toast.makeText(this, utils.getString(this,R.string.cant_read_file), Toast.LENGTH_LONG).show();
-            finish();
-        } catch (IOException e) {
-            Toast.makeText(this, utils.getString(this,R.string.cant_read_file), Toast.LENGTH_LONG).show();
-            finish();
-        } finally {
-            if (file != null) {
-                try {
-                    file.close();
-
-                } catch (IOException e) {
-                    Toast.makeText(this,utils.getString(this,R.string.cant_read_file), Toast.LENGTH_LONG).show();
-                    finish();
-                    e.printStackTrace();
-                }
-            }
-        }
-
-        return returnValue;
+    @Override
+    public void beforeTextChanged(CharSequence charSequence, int i, int i2, int i3) {
     }
 
-    public void writeTextFile(String fileName, String s) {
-        File f = new File(fileName);
-
-        FileWriter output = null;
-        try {
-            output = new FileWriter(fileName);
-            BufferedWriter writer = new BufferedWriter(output);
-            writer.write(s);
-            writer.close();
-        } catch (IOException e) {
-            e.printStackTrace();
-        } finally {
-            if (output != null) {
-                try {
-                    output.close();
-
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-            }
+    @Override
+    public void onTextChanged(CharSequence charSequence, int i, int i2, int i3) {
+        if (mTimer != null) {
+            mTimer.cancel();
+            mTimer.purge();
+            mTimer = null;
         }
-
-
+        mTimer = new Timer();
+        mTimer.schedule(new TimerTask() {
+            @Override
+            public void run() {
+                mModified = !mInput.getText().toString().equals(mOriginal);
+                invalidateOptionsMenu();
+            }
+        }, 250);
     }
 
-    class LoadText extends AsyncTask<String, String, String> {
-        @Override
-        public void onPreExecute() {
-            ma.setVisibility(View.GONE);
-            p.setVisibility(View.VISIBLE);
-        }
-
-        boolean editable = true;
-
-        public String doInBackground(String... p) {
-            String returnValue = "";
-            if (new File(p[0]).canWrite()) editable = true;
-            else editable = false;
-            FileReader file = null;
-            String line = "";
-            try {
-                file = new FileReader(p[0]);
-                BufferedReader reader = new BufferedReader(file);
-
-                while ((line = reader.readLine()) != null) {
-                    returnValue += line + "\n";
-                }
-                reader.close();
-            } catch (FileNotFoundException e) {
-                //	Toast.makeText(this,"Could not read file",Toast.LENGTH_LONG).show();finish();
-            } catch (IOException e) {
-                //	Toast.makeText(this,"Could not read file",Toast.LENGTH_LONG).show();finish();
-            } finally {
-                if (file != null) {
-                    try {
-                        file.close();
-
-                    } catch (IOException e) {
-                        //Toast.makeText(this,"Could not read file",Toast.LENGTH_LONG).show();finish();
-                        e.printStackTrace();
-                    }
-                }
-            }
-            return returnValue;
-        }
-
-        @Override
-        public void onPostExecute(String s) {
-            p.setVisibility(View.GONE);
-            ma.setFocusable(editable);
-            save = editable;
-            TextReader.this.invalidateOptionsMenu();
-            ma.setVisibility(View.VISIBLE);
-            ma.setText(s);
-        }
+    @Override
+    public void afterTextChanged(Editable editable) {
     }
 
+    private String getStatusColor() {
+
+        String[] colors = new String[]{
+                "#F44336","#D32F2F",
+                "#e91e63","#C2185B",
+                "#9c27b0","#7B1FA2",
+                "#673ab7","#512DA8",
+                "#3f51b5","#303F9F",
+                "#2196F3","#1976D2",
+                "#03A9F4","#0288D1",
+                "#00BCD4","#0097A7",
+                "#009688","#00796B",
+                "#4CAF50","#388E3C",
+                "#8bc34a","#689F38",
+                "#FFC107","#FFA000",
+                "#FF9800","#F57C00",
+                "#FF5722","#E64A19",
+                "#795548","#5D4037",
+                "#212121","#000000",
+                "#607d8b","#455A64",
+                "#004d40","#002620"
+        };
+        return colors[ Arrays.asList(colors).indexOf(skin)+1];
+    }
 }

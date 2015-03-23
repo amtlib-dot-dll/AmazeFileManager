@@ -32,6 +32,7 @@ import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
+import android.widget.RelativeLayout;
 import android.widget.TextView;
 
 import com.amaze.filemanager.R;
@@ -46,6 +47,7 @@ import java.util.HashMap;
 public class DrawerAdapter extends ArrayAdapter<String> {
     private final Context context;
     private final ArrayList<String> values;
+    private RelativeLayout l;
     MainActivity m;
     Futils futils=new Futils();
     IconUtils icons;
@@ -67,25 +69,26 @@ public class DrawerAdapter extends ArrayAdapter<String> {
         }
         notifyDataSetChanged();
     }
-void putColor(String x,float a,float b,float c){colors.put(x,new Float[]{a,b,c});}
+    void putColor(String x,float a,float b,float c){colors.put(x,new Float[]{a,b,c});}
     void putColors(){
-        putColor("#e51c23",0.89803922f,0.10980392f,0.1372549f);
+        putColor("#F44336",0.956862f,0.2627450f,0.21176470f);
         putColor("#e91e63",0.91372549f,0.11764706f,0.38823529f);
         putColor("#9c27b0",0.61176471f,0.15294118f,0.69019608f);
         putColor("#673ab7",0.40392157f,0.22745098f,0.71764706f);
         putColor("#3f51b5",0.24705882f,0.31764706f,0.70980392f);
-        putColor("#5677fc",0.3372549f,0.4666666f,0.98823529f);
-        putColor("#0288d1",0.007843137f,0.533333f,0.81960784f);
-        putColor("#0097a7",0.0f,0.59215686f,0.65490196f);
-        putColor("#009688",0.0f,0.58823529f,0.34509804f);
-        putColor("#259b24",0.14509804f,0.60784314f,0.14117647f);
+        putColor("#2196F3",0.12941176f,0.58823529f,0.952941176470f);
+        putColor("#03A9F4",0.01176470f,0.66274509f,0.9568627450f);
+        putColor("#00BCD4",0.0f,0.73725490f,0.831372549f);
+        putColor("#009688",0.0f,0.58823529f,0.53333f);
+        putColor("#4CAF50",0.298039f,0.68627450f,0.31372549f);
         putColor("#8bc34a",0.54509804f,0.76470588f,0.29019608f);
-        putColor("#ffa000",1.0f,0.62745098f,0.0f);
-        putColor("#f57c00",0.96078431f,0.48627451f,0.0f);
-        putColor("#e64a19",0.90196078f,0.29019608f,0.09803922f);
+        putColor("#FFC107",1.0f,0.7568627450f,0.0274509f);
+        putColor("#FF9800",1.0f,0.596078f,0.0f);
+        putColor("#FF5722",1.0f,0.341176470f,0.1333333f);
         putColor("#795548",0.4745098f,0.3333f,0.28235294f);
         putColor("#212121",0.12941176f,0.12941176f,0.12941176f);
         putColor("#607d8b",0.37647059f,0.49019608f,0.54509804f);
+        putColor("#004d40",0.0f, 0.301960f, 0.250980f);
 
     }
     public DrawerAdapter(Context context, ArrayList<String> values, MainActivity m, SharedPreferences Sp) {
@@ -101,6 +104,7 @@ void putColor(String x,float a,float b,float c){colors.put(x,new Float[]{a,b,c})
         this.m = m;
         putColors();
         color=colors.get(m.skin);
+        if(color==null){color=colors.get("#03A9F4");}
     }
     @Override
     public View getView(final int position, View convertView, ViewGroup parent) {
@@ -109,7 +113,12 @@ void putColor(String x,float a,float b,float c){colors.put(x,new Float[]{a,b,c})
         View rowView = inflater.inflate(R.layout.drawerrow, parent, false);
         TextView textView = (TextView) rowView.findViewById(R.id.firstline);
         ImageView imageView = (ImageView) rowView.findViewById(R.id.icon);
-        LinearLayout l = (LinearLayout) rowView.findViewById(R.id.second);
+        l = (RelativeLayout) rowView.findViewById(R.id.second);
+        if(m.theme1 == 0) {
+            l.setBackgroundResource(R.drawable.safr_ripple_white);
+        } else {
+            l.setBackgroundResource(R.drawable.safr_ripple_black);
+        }
         l.setOnClickListener(new View.OnClickListener() {
 
             public void onClick(View p1) {
@@ -118,6 +127,7 @@ void putColor(String x,float a,float b,float c){colors.put(x,new Float[]{a,b,c})
             // TODO: Implement this method
 
         });
+
         float[] src = {
 
                 color[0], 0, 0, 0, 0,
@@ -129,37 +139,33 @@ void putColor(String x,float a,float b,float c){colors.put(x,new Float[]{a,b,c})
         ColorMatrixColorFilter colorMatrixColorFilter = new ColorMatrixColorFilter(colorMatrix);
         if(values.get(position).equals("/storage/emulated/0"))
             textView.setText(futils.getString(context,R.string.storage));
+        else if(values.get(position).equals("/")){
+            textView.setText(R.string.rootdirectory);
+        }
         else {
-            if (position != values.size() - 1 && position != values.size() - 2){
-                textView.setText(new File(values.get(position)).getName());
-            }else textView.setText(values.get(position));
+            textView.setText(new File(values.get(position)).getName());
         }
-        if (position == values.size() - 1) {
-            if (myChecked.get(position)) {
-                imageView.setImageResource(R.drawable.ic_action_not_important);
-            } else
-                imageView.setImageDrawable(icons.getBookDrawable1());
-        }else if(position == values.size() - 2){
-            if(myChecked.get(position)) {
-                imageView.setImageResource(R.drawable.ic_action_view_as_grid);
-            } else
-                imageView.setImageDrawable(icons.getGridDrawable());
-        }else{
-            if(myChecked.get(position)){
-                imageView.setImageResource(R.drawable.ic_action_sd_storage);
-                imageView.setColorFilter(colorMatrixColorFilter);}
-            else
-                imageView.setImageDrawable(icons.getSdDrawable1());
-        }
+
         if(myChecked.get(position)){
             imageView.setColorFilter(colorMatrixColorFilter);
-           textView.setTypeface(Typeface.DEFAULT_BOLD);
-            textView.setTextColor(Color.parseColor(m.skin));}
+            //textView.setTypeface(Typeface.DEFAULT_BOLD);
+            textView.setTextColor(Color.parseColor(m.skin));
+
+            imageView.setImageResource(R.drawable.folder_drawer_white);
+            //if(m.theme1==0)
+            imageView.setColorFilter(colorMatrixColorFilter);
+        }
         else
-        if(m.theme1==0)
-            textView.setTextColor(m.getResources().getColor(android.R.color.black));
-        else
-            textView.setTextColor(m.getResources().getColor(android.R.color.white));
+        {
+            if(m.theme1==0) {
+                textView.setTextColor(m.getResources().getColor(android.R.color.black));
+            }
+            else
+            {
+                textView.setTextColor(m.getResources().getColor(android.R.color.darker_gray));
+            }
+            imageView.setImageResource(R.drawable.folder_drawer);
+        }
 
         return rowView;
     }

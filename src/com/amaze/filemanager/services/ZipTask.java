@@ -20,6 +20,7 @@
 package com.amaze.filemanager.services;
 
 import android.app.Notification;
+import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
 import android.content.BroadcastReceiver;
@@ -29,11 +30,15 @@ import android.content.IntentFilter;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.IBinder;
+import android.preference.PreferenceManager;
+import android.support.v4.app.NotificationCompat;
+import android.support.v4.content.LocalBroadcastManager;
 
 import com.amaze.filemanager.R;
 import com.amaze.filemanager.activities.MainActivity;
 import com.amaze.filemanager.utils.Futils;
 
+import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
@@ -52,22 +57,26 @@ public class ZipTask extends Service {
     Futils utils = new Futils();
     // Binder given to clients
     HashMap<Integer, Boolean> hash = new HashMap<Integer, Boolean>();
-
+    NotificationManager mNotifyManager;
+    NotificationCompat.Builder mBuilder;
+    String zpath;
     @SuppressWarnings("deprecation")
     @Override
     public void onCreate() {
-        Notification notification = new Notification(R.drawable.ic_doc_compressed,getResources().getString(R.string.Zipping_fles), System.currentTimeMillis());
-        Intent notificationIntent = new Intent(this, MainActivity.class);
-        PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, notificationIntent, 0);
-        notification.setLatestEventInfo(this,getResources().getString(R.string.Zipping_fles), "", pendingIntent);
-        startForeground(004, notification);
         registerReceiver(receiver1, new IntentFilter("zipcancel"));
     }
-
+boolean foreground=true;
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         Bundle b = new Bundle();
+        zpath= PreferenceManager.getDefaultSharedPreferences(this).getString("zippath","");
+        mNotifyManager =
+                (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
         String name = intent.getStringExtra("name");
+        if((zpath!=null && zpath.length()!=0)){
+        if(zpath.endsWith("/"))name=zpath+new File(name).getName();
+            else name=zpath+"/"+new File(name).getName();
+        }
         File c = new File(name);
         if (!c.exists()) {
             try {
@@ -76,6 +85,17 @@ public class ZipTask extends Service {
                 // TODO Auto-generated catch block
                 e.printStackTrace();
             }
+        }
+        mBuilder = new NotificationCompat.Builder(this);
+        Intent notificationIntent = new Intent(this, MainActivity.class);
+        notificationIntent.putExtra("openprocesses",true);
+        PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, notificationIntent, 0);
+        mBuilder.setContentIntent(pendingIntent);
+        mBuilder.setContentTitle(getResources().getString(R.string.zipping))
+
+                .setSmallIcon(R.drawable.ic_doc_compressed);
+        if(foreground){
+            startForeground(Integer.parseInt("789"+startId),mBuilder.build());
         }
         ArrayList<String> a = intent.getStringArrayListExtra("files");
         b.putInt("id", startId);
@@ -86,7 +106,7 @@ public class ZipTask extends Service {
         // If we get killed, after returning from here, restart
         return START_REDELIVER_INTENT;
     }
-
+Context c=this;
     public class Doback extends AsyncTask<Bundle, Void, Integer> {
         ArrayList<String> files;
 
@@ -97,7 +117,6 @@ public class ZipTask extends Service {
         String name;
 
         protected Integer doInBackground(Bundle... p1) {
-
             int id = p1[0].getInt("id");
             ArrayList<String> a = p1[0].getStringArrayList("files");
             name = p1[0].getString("name");
@@ -108,7 +127,7 @@ public class ZipTask extends Service {
 
         @Override
         public void onPostExecute(Integer b) {
-            publishResults(b, name, 100, true);
+            publishResults(b, name, 100, true,0,totalBytes);
             publishResult(false);
             stopSelf(b);
             Intent intent = new Intent("loadlist");
@@ -117,16 +136,40 @@ public class ZipTask extends Service {
 
     }
 
-    private void publishResults(int id, String fileName, int i, boolean b) {
-        Intent intent = new Intent(EXTRACT_CONDITION);
-        intent.putExtra(EXTRACT_PROGRESS, i);
-        intent.putExtra("id", id);
-        intent.putExtra("name", fileName);
-        intent.putExtra(EXTRACT_COMPLETED, b);
-        sendBroadcast(intent);
+    private void publishResults(int id, String fileName, int i, boolean b,long done,long total) {
+        if (hash.get(id)) {
+            mBuilder.setProgress(100, i, false);
+            mBuilder.setOngoing(true);
+            int title = R.string.zipping;
+            mBuilder.setContentTitle(utils.getString(c, title));
+            mBuilder.setContentText(new File(fileName).getName() + " " + utils.readableFileSize(done) + "/" + utils.readableFileSize(total));
+            int id1 = Integer.parseInt("789" + id);
+            mNotifyManager.notify(id1, mBuilder.build());
+            if (i == 100 || total == 0) {
+                mBuilder.setContentTitle("Zip completed");
+                mBuilder.setContentText("");
+                mBuilder.setProgress(0, 0, false);
+                mBuilder.setOngoing(false);
+                mNotifyManager.notify(id1, mBuilder.build());
+                publishCompletedResult(id1);
+            }
+            Intent intent = new Intent(EXTRACT_CONDITION);
+            intent.putExtra(EXTRACT_PROGRESS, i);
+            intent.putExtra("id", id);
+            intent.putExtra("name", fileName);
+            intent.putExtra(EXTRACT_COMPLETED, b);
+            sendBroadcast(intent);
 
+        } else {
+            publishCompletedResult(Integer.parseInt("789" + id));
+        }
+    }public void publishCompletedResult(int id1){
+        try {
+            mNotifyManager.cancel(id1);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
-
     private void publishResult(boolean b) {
         Intent intent = new Intent("run");
         intent.putExtra("run", b);
@@ -151,14 +194,14 @@ public class ZipTask extends Service {
         public zip() {
         }
 
-        int count;
+        int count,lastpercent=0;
         long size, totalBytes;
         String fileName;
 
         public void execute(int id, ArrayList<File> a, String fileOut) {
             for (File f1 : a) {
                 if (f1.isDirectory()) {
-                    totalBytes = totalBytes + new Futils().folderSize(f1,false);
+                    totalBytes = totalBytes + new Futils().folderSize(f1);
                 } else {
                     totalBytes = totalBytes + f1.length();
                 }
@@ -177,38 +220,36 @@ public class ZipTask extends Service {
                 try {
                     publishResult(true);
                     compressFile(id, file, "");
-                } catch (IOException e) {
+                } catch (Exception e) {
                 }
             }
             try {
                 zos.flush();
                 zos.close();
 
-            } catch (IOException e) {
+            } catch (Exception e) {
             }
         }
 
         ZipOutputStream zos;
         private int isCompressed = 0;
 
-        private void compressFile(int id, File file, String path) throws IOException {
+        private void compressFile(int id, File file, String path) throws IOException,NullPointerException {
 
             if (!file.isDirectory()) {
-                byte[] buf = new byte[1024];
+                byte[] buf = new byte[20480];
                 int len;
-                FileInputStream in = new FileInputStream(file);
-                if (path.length() > 0)
+                BufferedInputStream in=new BufferedInputStream( new FileInputStream(file));
                     zos.putNextEntry(new ZipEntry(path + "/" + file.getName()));
-                else
-                    zos.putNextEntry(new ZipEntry(file.getName()));
                 while ((len = in.read(buf)) > 0) {
                     if (hash.get(id)) {
                         zos.write(buf, 0, len);
                         size += len;
-                        publishResult(true);
-                        int p = Math.round(size * 100 / totalBytes);
-                        System.out.println(id + " " + p + " " + hash.get(id));
-                        publishResults(id, fileName, p, false);
+                        int p=(int) ((size / (float) totalBytes) * 100);
+                        if(p!=lastpercent || lastpercent==0) {
+                            publishResults(id, fileName, p, false, size, totalBytes);
+                            publishResult(true);
+                        }lastpercent=p;
                     }
                 }
                 in.close();

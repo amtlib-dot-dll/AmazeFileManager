@@ -19,11 +19,7 @@
 
 <PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
     <PreferenceCategory android:title="@string/ui">
-
-        <ListPreference
-            android:defaultValue="0"
-            android:entries="@array/theme"
-            android:entryValues="@array/ints1"
+        <Preference
             android:key="theme"
             android:title="@string/theme" />
         <Preference
@@ -38,10 +34,12 @@
             android:key="random"
             android:title="@string/random"
             android:summary="@string/random_summary"/>
-        <ListPreference
-            android:defaultValue="0"
-            android:entries="@array/uimode"
-            android:entryValues="@array/ints"
+        <CheckBoxPreference
+            android:key="circularimages"
+            android:defaultValue="true"
+            android:summary="@string/circularimages"
+            android:title="@string/circularicons"/>
+        <Preference
             android:key="uimode"
             android:summary="@string/chooseUI"
             android:title="@string/uimode" />
@@ -50,47 +48,59 @@
     <PreferenceCategory android:title="@string/general">
         <CheckBoxPreference
             android:defaultValue="true"
+            android:key="savepaths"
+            android:summary="@string/savepathsummary"
+            android:title="@string/savepaths" />
+        <CheckBoxPreference
+            android:defaultValue="true"
             android:key="showThumbs"
             android:summary="@string/thumbSummary"
             android:title="@string/thumb" />
 		<CheckBoxPreference
-            android:defaultValue="true"
+            android:defaultValue="false"
             android:key="showHidden"
           
             android:title="@string/hidden" />
         <CheckBoxPreference
             android:defaultValue="true"
             android:key="showLastModified"
+            android:enabled="false"
             android:summary="@string/lastModifiedSummary"
             android:title="@string/lastModifiedPref" />
         <CheckBoxPreference
-            android:defaultValue="true"
+            android:defaultValue="false"
             android:key="showFileSize"
             android:summary="@string/sizePrefSummary"
             android:title="@string/sizePref" />
-        <ListPreference
-            android:entries="@array/columns"
-            android:entryValues="@array/columns"
+        <CheckBoxPreference
+            android:defaultValue="false"
+            android:key="goBack_checkbox"
+            android:title="@string/back_title"
+            android:summary="@string/back_summary" />
+        <Preference
             android:key="columns"
             android:title="@string/gridcolumnno" />
-
-        <ListPreference
-            android:defaultValue="0"
-            android:entries="@array/directorysortmode"
-            android:entryValues="@array/ints1"
+        <Preference
             android:key="dirontop"
             android:title="@string/directorysort" />
 
-
-        <ListPreference
-            android:defaultValue="0"
-            android:entries="@array/sortby"
-            android:entryValues="@array/ints2"
+        <Preference
             android:key="sortby"
             android:title="@string/sortby" />
     
     </PreferenceCategory>
-
+    <PreferenceCategory android:title="@string/archive_preferences">
+        <EditTextPreference
+            android:key="extractpath"
+            android:title="@string/archive_extract_folder"
+            android:summary="@string/archive_summary">
+        </EditTextPreference>
+        <EditTextPreference
+            android:key="zippath"
+            android:summary="@string/zip_summary"
+            android:title="@string/zip_create_folder">
+        </EditTextPreference>
+</PreferenceCategory>
     <PreferenceCategory android:title="@string/miscellaneous">
 
         <CheckBoxPreference
@@ -109,17 +119,63 @@
         <PreferenceScreen
             android:title="@string/aboutFileManager" >
             <Preference
+                android:key="studio"
+                android:title="@string/version"
+                android:summary="v1.5"/>
+            <Preference
                 android:key="authors"
                 android:title="@string/authors" />
-            <Preference
-                android:title="@string/version"
-                android:summary="v1.0"/>
+            <PreferenceScreen
+                android:title="@string/translators">
+                <Preference
+                    android:title="@string/german_translation_title"
+                    android:summary="@string/german_translation_summary"/>
+                <Preference
+                    android:title="@string/italian_translation_title"
+                    android:summary="@string/italian_translation_summary"/>
+                <Preference
+                    android:title="@string/french_translation_title"
+                    android:summary="@string/french_translation_summary"/>
+                <Preference
+                    android:title="@string/russian_translation_title"
+                    android:summary="@string/russian_translation_summary"/>
+                <Preference
+                    android:title="@string/spanish_translation_title"
+                    android:summary="@string/spanish_translation_summary"/>
+                <Preference
+                    android:title="@string/basque_translation_title"
+                    android:summary="@string/basque_translation_summary"/>
+                <Preference
+                    android:title="@string/chinese_translation_title"
+                    android:summary="@string/chinese_translation_summary"/>
+                <Preference
+                    android:title="@string/serbian_translation_title"
+                    android:summary="@string/serbian_translation_summary"/>
+                <Preference
+                    android:title="@string/turkish_translation_title"
+                    android:summary="@string/turkish_translation_summary"/>
+                <Preference
+                    android:title="@string/ukrainian_translation_title"
+                    android:summary="@string/ukrainian_translation_summary"/>
+                <Preference
+                    android:title="@string/portuguese_translation_title"
+                    android:summary="@string/portuguese_translation_summary" />
+                <Preference
+                    android:title="@string/polish_translation_title"
+                    android:summary="@string/polish_translation_summary" />
+
+                </PreferenceScreen>
             <Preference
                 android:key="changelog"
                 android:title="@string/changelog" />
             <Preference
+                android:key="xda"
+                android:title="@string/xda_title"
+                android:summary="@string/xda_summary"/>
+            <Preference
                 android:key="rate"
                 android:title="@string/rate" />
+
             <Preference
                 android:key="os"
                 android:title="@string/license" />
@@ -128,5 +184,4 @@
             android:key="feedback"
             android:title="@string/feedback" />
     </PreferenceCategory>
-
-    </PreferenceScreen>
+</PreferenceScreen>

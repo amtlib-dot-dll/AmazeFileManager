@@ -17,11 +17,18 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
     -->
 
-<menu xmlns:android="http://schemas.android.com/apk/res/android">
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
     <item
         android:id="@+id/save"
         android:title="@string/save"
-        android:icon="@drawable/ic_action_save_light"
-        android:showAsAction="always" />
-
+        android:icon="@drawable/ic_action_save"
+        app:showAsAction="ifRoom|withText" />
+    <item
+        android:id="@+id/details"
+        android:title="@string/details"
+        app:showAsAction="never" />
+    <item
+        android:id="@+id/openwith"
+        android:title="@string/openwith" />
 </menu>

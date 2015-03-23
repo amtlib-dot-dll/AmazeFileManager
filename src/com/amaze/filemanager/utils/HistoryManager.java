@@ -47,7 +47,7 @@ public class HistoryManager {
             try {
                 paths.add(c.getString(c.getColumnIndex("PATH")));
             } catch (Exception e) {
-                e.printStackTrace();
+     //           e.printStackTrace();
             }
         } while (c.moveToPrevious());
         return paths;
@@ -62,8 +62,11 @@ public class HistoryManager {
             db.execSQL("INSERT INTO " + table + " VALUES" + "('" + path + "');");
         } catch (Exception e) {
             open();
-            addPath(path);
-            e.printStackTrace();
+            try {
+                db.execSQL("DELETE FROM " + table + " WHERE PATH='" + path + "'");
+                db.execSQL("INSERT INTO " + table + " VALUES" + "('" + path + "');");
+            } catch (Exception f) {
+            }e.printStackTrace();
         }
     }
     public void removePath(String path){

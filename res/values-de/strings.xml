@@ -17,7 +17,9 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
     -->
 
-<resources>
+<resources
+    xmlns:tools="http://schemas.android.com/tools"
+    tools:ignore="MissingTranslation">
     <string name="app_name">Beispiel der Navigationsleiste</string> <!--do you actually need that one?-->
     <string name="drawer_open">Öffne Navigationsleiste</string>
     <string name="drawer_close">Schließe Navigationsleiste</string>
@@ -59,11 +61,11 @@
     <string name="searchpath">Suchpfad</string>
     <string name="search">Suchen</string>
     <string name="enterfile">Dateinamen eingeben</string>
-    <string name="name">Name:</string>
-    <string name="date">Datum:</string>
-    <string name="location">Dateipfad:</string>
-    <string name="size">Größe:</string>
-    <string name="totalitems">Gesamtanzahl:</string>
+    <string name="name">Name: </string>
+    <string name="date">Datum: </string>
+    <string name="location">Dateipfad: </string>
+    <string name="size">Größe: </string>
+    <string name="totalitems">Gesamtanzahl: </string>
     <string name="enterzipname">Zip-Namen eingeben</string>
     <string name="noappfound">Keine App zum Öffnen gefunden</string>
     <string name="copying">Kopiert</string>
@@ -127,10 +129,6 @@
     <string name="fileexplorer">Datei-Explorer</string>
     <string name="changegallerypath">Galleriepfad ändern</string>
     <string name="usedefaultgallerypath">Standard-Galleriepfad verwenden</string>
-
-    <!-- Changelog -->
-    <string name="changelog_version_1">&lt;font color="#524ef8">&lt;b>v1.0&lt;/font>&lt;/b>&lt;i>&lt;font color="#5299f2">&lt;br>Nov 11, 2014&lt;/i>&lt;/font>&lt;br>&lt;br></string>
-    <string name="changelog_change_1">- Initial release&lt;br>&lt;br></string>
 
     <!-- New -->
     <!-- Array -->
@@ -237,5 +235,6 @@
     <string name="license">Open Source Lizenzen</string>
     <string name="feedback">Feedback senden</string>
     <string name="hiddenfiles">Versteckte Dateien</string>
+    <string name="addshortcut">Schnellwahl</string>
 </resources>
 	
